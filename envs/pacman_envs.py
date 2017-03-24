@@ -129,6 +129,7 @@ class PacmanEnv(Env):
 		randomly generated state
 		initial state
 		"""
+		self.num_prey = self.num_predators
 		self.predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 		self.prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 

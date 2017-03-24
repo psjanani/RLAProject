@@ -260,7 +260,7 @@ class DQNAgent:
 		total_steps = 0
 
 		for i in range(num_episodes):
-			reward = 0
+			reward = 0.0
 			df = 1.0
 
 			s = env.reset()

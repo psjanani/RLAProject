@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda
+from keras.layers.pooling import MaxPooling2D
 from keras.layers.core import RepeatVector
 from keras.models import Model
 from keras.optimizers import RMSprop, SGD, Adam, Nadam
@@ -52,7 +53,8 @@ def create_model(channels, input_shape, num_actions,
 
     if(model_name=='linear'):
         return linear_q_model(channels, input_shape, num_actions)
-
+    elif(model_name=='stanford'):
+        return deep_stanford_q_model(channels, input_shape, num_actions, model_name)
     elif(model_name=='deep' or 'dueling' in model_name):
         return deep_q_model(channels, input_shape, num_actions, model_name)
     else:
@@ -73,8 +75,53 @@ def linear_q_model(channels, input_shape, num_actions):
 
     return Model(input=[state_input, action_mask], output=masked_output)
 
+def deep_stanford_q_model(channels, input_shape, num_actions, model_name):
+    img_dims =(input_shape[0], input_shape[1], channels)
+
+    state_input = Input(shape=img_dims, name='state_input')
+
+    action_mask = Input(shape=(num_actions, ), name='action_mask')
+
+    conv1 = Convolution2D(32, 3, 3, \
+        border_mode='same', subsample=(1, 1))(state_input)
+
+    conv2 = Convolution2D(32, 3, 3, activation='relu', \
+        border_mode='same', subsample=(1, 1))(conv1)
+
+    conv2_norm = BatchNormalization()(conv2)
+
+    conv3 = Convolution2D(32, 3, 3, \
+        border_mode='same', subsample=(1, 1))(conv2_norm)
+
+    conv3_skip = merge([conv1, conv3], mode='sum')
+
+    conv3_pool = MaxPooling2D(pool_size=(2,2))(conv3_skip)
+
+    conv4 = Convolution2D(32, 3, 3, activation='relu', \
+        border_mode='same', subsample=(1, 1))(conv3_pool)
+
+    conv4_norm = BatchNormalization()(conv4)
+
+    conv5 = Convolution2D(32, 3, 3, activation='relu', \
+        border_mode='same', subsample=(1, 1))(conv4_norm)
+
+    conv5_skip = merge([conv3_pool, conv5], mode='sum')
+
+    flatten = Flatten()(conv5_skip)
+
+    dense_layer = Dense(512, activation='relu')(flatten)
+
+    action_output = Dense(num_actions, activation='linear', name='action_output')(dense_layer)
+
+    masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+
+    model = Model(input=[state_input, action_mask], output=masked_output)
+
+    return model
+
+
 def deep_q_model(channels, input_shape, num_actions, model_name):
-    # 10 x 10 x 3
+    # 10 x 10 x channels (3 or 4)
     img_dims =(input_shape[0], input_shape[1], channels)
 
     state_input = Input(shape=img_dims, name='state_input')
@@ -170,7 +217,7 @@ def get_output_folder(parent_dir, env_name):
 def make_assertions(args):
     algo = args.algorithm
     network_name = args.network_name
-    assert network_name == 'linear' or network_name == 'deep' or 'dueling' in network_name
+    assert network_name == 'stanford' or network_name == 'linear' or network_name == 'deep' or 'dueling' in network_name
     assert algo == 'basic' or algo == 'replay_target' or algo == 'double'
 
 def main():
@@ -191,13 +238,13 @@ def main():
     parser.add_argument('--max_episode_length', default=1000, type=int, help='Max episode length (for training, not eval).')
     parser.add_argument('--memory', default=1e6, type=int, help='size of buffer for experience replay')
     parser.add_argument('--momentum', default=0.95, type=float)
-    parser.add_argument('--network_name', default='deep', help='Model Name: deep or linear or dueling or dueling_av or dueling_max')
+    parser.add_argument('--network_name', default='stanford', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
     parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
     parser.add_argument('--num_decay_steps', default=1e6, type=int, help='Epsilon policy decay length')
     parser.add_argument('--num_iterations', default=5e7, type=int, help='Number frames visited for training.')
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
-    parser.add_argument('--update_freq', default=4, type=int, help='Update frequency.')
+    parser.add_argument('--update_freq', default=1, type=int, help='Update frequency.')
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
 
     args = parser.parse_args()

@@ -42,7 +42,7 @@ class HistoryPreprocessor(Preprocessor):
     def get_state(self):
         if self.model_name == 'linear':
             return self.frames.reshape(1, self.history_length * self.frame_size[0] * self.frame_size[1] * self.channels)
-        elif self.model_name =='deep' or 'dueling' in self.model_name:
+        elif self.model_name =='stanford' or self.model_name =='deep' or 'dueling' in self.model_name:
             return np.transpose(self.frames, (3, 0, 1, 2))
         else:
             raise Exception("Unsupported model name: " + self.model_name + ".  Accepts linear or deep.")
