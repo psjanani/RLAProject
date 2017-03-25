@@ -225,11 +225,15 @@ class PacmanEnv(Env):
 
 
 	def _step(self, action):
-		action_str = str(action)
+		action_str = str("".join(action))
 		actions = []
 
 		for action in action_str:
-			actions.append(int(action))
+			try:
+				action = int(action)
+			except ValueError:
+				action = np.random.randint(4)
+			actions.append(action)
 
 		for i in range(self.num_agents - len(action_str)):
 			actions.append(np.random.randint(4))
