@@ -241,7 +241,7 @@ class PacmanEnv(Env):
 		new_predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 		new_prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 
-		reward = 0
+		reward = ''
 
 		current_positions, next_positions = self.resolve_conflicts(actions[0:self.num_predators], 'predator')
 
@@ -266,10 +266,11 @@ class PacmanEnv(Env):
 
 			if swapped_places:
 				self.num_prey -= 1
-				reward += 1
+
+				reward += str(predator_mark_old)
 			elif landed_same_place:
 				self.num_prey -= 1
-				reward += 1
+				reward += str(predator_mark_new)
 			else:
 				new_prey_channel[new_r][new_c] = self.prey_channel[r][c]
 

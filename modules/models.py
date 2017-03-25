@@ -20,8 +20,10 @@ class LinearModel(Models):
     def create_model(self):
         state_input = Input(shape=(self.channels * self.input_shape[0] * self.input_shape[1],), name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
-        state_input_norm = BatchNormalization(mode=0, axis=-1)(state_input)
-        action_output = Dense(self.num_actions, activation='linear', name='action_output')(state_input_norm)
+
+        dense = Dense(16, activation='relu', name='action')(state_input)
+
+        action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense)
         masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
         model = Model(input=[state_input, action_mask], output=masked_output)
         return model

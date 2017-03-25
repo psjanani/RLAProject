@@ -48,7 +48,6 @@ class DQNAgent:
 		self.num_actions = int(args.num_actions)
 		self.target_update_freq = args.target_update_freq
 		self.num_burn_in = int(args.num_burn_in)
-		self.eval_freq = args.eval_freq
 		self.batch_size = args.batch_size
 		self.algorithm = args.algorithm
 		self.update_freq = int(args.update_freq)
@@ -89,7 +88,7 @@ class DQNAgent:
 			# get new processed state frames
 			S_prime = self.preprocessor.get_state()
 			R = self.preprocessor.process_reward(R)
-			self.buffer.append(S, A, R, S_prime, is_terminal)
+			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
 			if is_terminal:
 				self.reset(env)
 
@@ -132,8 +131,6 @@ class DQNAgent:
 
 		return state, q_value_index, true_output_masked
 
-
-
 	def select_action(self, S):
 		# returns q_values and chosen action (network chooses action and evaluates)
 		q_values = self.calc_q_values(self.network, S)
@@ -156,6 +153,3 @@ class DQNAgent:
 			tmp = self.target
 			self.target = self.network
 			self.network = tmp
-
-
-

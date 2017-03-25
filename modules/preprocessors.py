@@ -19,10 +19,12 @@ class HistoryPreprocessor(Preprocessor):
 
     """
 
-    def __init__(self, frame_size, model_name, channels, history_length=1):
+    def __init__(self, frame_size, model_name, num_pred, coop, channels, history_length=1):
         self.history_length = history_length
         self.channels = channels
         self.model_name = model_name
+        self.coop = coop
+        self.num_pred = num_pred
         self.frame_size = frame_size
         self.model_name = model_name
         self.reset()
@@ -37,7 +39,15 @@ class HistoryPreprocessor(Preprocessor):
         return self.frames
 
     def process_reward(self, reward):
-        return reward
+        rewards = [0] * self.num_pred
+
+        for num in reward:
+            if self.coop:
+                rewards = map(lambda r: r + 1, rewards)
+            else: # just the killer gets rewarded (perverse if you ask me)
+                rewards[int(num)] += 1
+
+        return rewards
 
     def get_state(self):
         if self.model_name == 'linear':

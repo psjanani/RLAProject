@@ -19,13 +19,15 @@ class IndependentDQN(MultiAgent):
     # Simplest case where each agent has an autonomous DQN
     # The buffers are different for each DQN, history Preprocessor is the same. During the training,
     # the interaction with the environment is coordinated.
-
     def __init__(self, number_agents, model_name, args, optimizer, loss):
         self.number_pred = number_agents / 2
         self.pred_model = {}
+        self.coop = args.coop
         self.gamma = args.gamma
+        self.agent_dissemination_freq = args.agent_dissemination_freq
         self.algorithm = args.algorithm
         self.optimizer = optimizer
+        self.eval_freq = args.eval_freq
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
@@ -43,24 +45,29 @@ class IndependentDQN(MultiAgent):
         self.env = env
 
         for i in range(self.number_pred):
-            model = self.m.create_model()
-            model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
+            # if train one at a time every model after 1st is a copy of the first's weights
             buffer = None
-            if (args.num_burn_in != 0):
-                buffer = NaiveReplay(args.memory, not self.algorithm == 'basic', None)
+            if i > 0 and self.args.solo_train:
+                model = Model.from_config(self.pred_model[0].network.get_config())
+                get_hard_target_model_updates(model, self.pred_model[0].network)
+            else:
+                model = self.m.create_model()
+                model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
+                if (args.num_burn_in != 0):
+                    buffer = NaiveReplay(args.memory, not self.algorithm == 'basic', None)
             self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
 
     def model_init(self, args):
-        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, args.channels, args.history)
-
+        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.channels, args.history)
 
     def fit(self, num_iterations, eval_num, max_episode_length=None):
         best_reward = -float('inf')
         best_weights = None
 
         for i in range(self.number_pred):
-            self.pred_model[i].create_buffer(self.env)
-        print self.number_pred
+            if not self.args.solo_train or i == 0:
+                self.pred_model[i].create_buffer(self.env)
+
         num_iters = 0
         while num_iters < num_iterations:
             self.pred_model[0].reset(self.env)
@@ -81,22 +88,36 @@ class IndependentDQN(MultiAgent):
                 R, is_terminal = self.step(action_string)
                 S_prime = self.preprocessor.get_state()
 
+                if num_iters % self.eval_freq == 0:
+                    # record last 100_rewards
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(10)
+                    print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
+                        + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
+
                 for i in range(self.number_pred):
                     model = self.pred_model[i]
-                    model.buffer.append(S, A[i], R, S_prime, is_terminal)
-                    if model.target_fixing and num_iters % model.target_update_freq == 0:
-                        get_hard_target_model_updates(model.target, model.network)
-                    if num_iters % model.update_freq == 0:
-                        model.update_model(num_iters)
-                        if model.coin_flip:
-                            model.switch_roles()
+                    if i > 0 and self.args.solo_train:
+                        if num_iters % self.agent_dissemination_freq == 0:
+                            get_hard_target_model_updates(self.pred_model[0].network, model.network)
+                    else:
+                        model.buffer.append(S, A[i], R[i], S_prime, is_terminal)
+                        if model.target_fixing and num_iters % model.target_update_freq == 0:
+                            get_hard_target_model_updates(model.target, model.network)
+                        if num_iters % model.update_freq == 0:
+                            model.update_model(num_iters)
+                            if model.coin_flip:
+                                model.switch_roles()
 
                 num_iters += 1
                 steps += 1
 
+                if num_iters > num_iterations:
+                    break
+
         # record last 100_rewards
-        avg_reward, avg_q, std_dev_rewards = self.evaluate(100)
-        print(str(num_iters) + '(final):' + str(avg_reward) + ',' + str(avg_q) + ',' + str(std_dev_rewards))
+        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(100)
+        print(str(num_iters) + '(final):\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
+            + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
 
         # TODO SAVE BEST_WEIGHTS = best_weights
         if(type(best_reward)==float):
@@ -114,7 +135,7 @@ class IndependentDQN(MultiAgent):
 
     def evaluate(self, num_episodes=20):
         total_reward = 0.0
-        average_q_value = 0.0
+        average_q_values = [0.0] * self.number_pred
         rewards = []
 
         # evaluation always uses greedy policy
@@ -148,18 +169,17 @@ class IndependentDQN(MultiAgent):
                     action_string += str(A[i])
                     max_q_val_sum[i] += np.max(q_values)
 
-                s_prime, R, is_terminal, debug_info = self.env.step(A)
-                reward += R * df
+                s_prime, R, is_terminal, debug_info = self.env.step(action_string)
+                R = self.preprocessor.process_reward(R)
+                reward += R[0] * df # same for each predator bc/ it's cooperative
                 self.preprocessor.add_state(s_prime)
                 df *= self.gamma
 
             total_reward += reward
             rewards.append(reward)
             for i in range(self.number_pred):
-                average_q_value[i] += max_q_val_sum[i] / steps
+                average_q_values[i] += max_q_val_sum[i] / steps
 
-        avg_q, avg_reward = average_q_value / num_episodes, total_reward / num_episodes
+        avg_q, avg_reward = np.sum(np.array(average_q_values)) / (num_episodes * self.number_pred), total_reward / num_episodes
         avg_steps = total_steps / num_episodes
         return avg_reward, avg_q, avg_steps, np.max(rewards), np.std(rewards)
-
-
