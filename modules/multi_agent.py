@@ -20,18 +20,22 @@ class IndependentDQN(MultiAgent):
     # The buffers are different for each DQN, history Preprocessor is the same. During the training,
     # the interaction with the environment is coordinated.
 
-    def __init__(self, number_agents, model_name, channels, input_shape, num_actions):
+    def __init__(self, number_agents, model_name, args, optimizer, loss):
         self.number_pred = number_agents / 2
         self.pred_model = {}
-
+        self.gamma = args.gamma
+        self.algorithm = args.algorithm
+        self.optimizer = optimizer
+        self.loss = loss
+        self.model_name = model_name
         if (model_name == 'linear'):
-            self.m = LinearModel(channels, input_shape, num_actions)
+            self.m = LinearModel(args.channels, (args.dim, args.dim), args.num_actions)
 
         if (model_name == 'stanford'):
-            self.m = StanfordModel(channels, input_shape, num_actions)
+            self.m = StanfordModel(args.channels, (args.dim, args.dim), args.num_actions)
 
         if (model_name == 'deep' or 'dueling' in model_name):
-            self.m = DeepQModel(channels, input_shape, num_actions, model_name)
+            self.m = DeepQModel(args.channels, (args.dim, args.dim), args.num_actions, model_name)
 
     def create_model(self, env, args):
         self.model_init(args)
@@ -47,25 +51,6 @@ class IndependentDQN(MultiAgent):
             self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
 
     def model_init(self, args):
-        self.gamma = args.gamma
-        self.algorithm = args.algorithm
-        if args.optimizer == 'rmsprop':
-            self.optimizer = RMSprop(lr=args.lr)
-        elif args.optimizer == 'sgd':
-            self.optimizer = SGD(lr=args.lr, momentum=args.momentum)
-        elif args.optimizer == 'adam':
-            self.optimizer = Adam(lr=args.lr)
-        elif args.optimizer == 'nadam':
-            self.optimizer = Nadam(lr=args.lr)
-        else:
-            raise Exception("Only rmsprop, sgd, nadam, and adam currently supported.")
-
-        if args.loss == 'mean_huber':
-            self.loss = mean_huber_loss
-        elif args.loss == 'huber':
-            self.loss = huber_loss
-        else:
-            self.loss = args.loss
         self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, args.channels, args.history)
 
 

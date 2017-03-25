@@ -75,8 +75,27 @@ def main():
     if args.verbose == 2:
         argrender(args)
 
+
+    if args.optimizer == 'rmsprop':
+        optimizer = RMSprop(lr=args.lr)
+    elif args.optimizer == 'sgd':
+        optimizer = SGD(lr=args.lr, momentum=args.momentum)
+    elif args.optimizer == 'adam':
+        optimizer = Adam(lr=args.lr)
+    elif args.optimizer == 'nadam':
+        optimizer = Nadam(lr=args.lr)
+    else:
+        raise Exception("Only rmsprop, sgd, nadam, and adam currently supported.")
+
+    if args.loss == 'mean_huber':
+        loss = mean_huber_loss
+    elif args.loss == 'huber':
+        loss = huber_loss
+    else:
+        loss = args.loss
+
     # Create the multi-Agent setting
-    multiagent = IndependentDQN(args.num_agents, args.network_name, args.channels, (args.dim, args.dim), args.num_actions)
+    multiagent = IndependentDQN(args.num_agents, args.network_name, args, optimizer, loss)
     multiagent.create_model(env, args)
     multiagent.fit(args.num_iterations, args.eval_num, args.max_episode_length)
 
