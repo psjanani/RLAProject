@@ -71,17 +71,16 @@ def main():
 
     if 'Pacman' in args.env:
         args.num_actions = 4
-        args.channels = 3
+        args.channels = 4
     elif 'Warehouse' in args.env:
         args.num_actions = 6
-        args.channels = 3
+        args.channels = 4
     else:
         args.num_actions = env.action_space.n
         ## not sure
 
     if args.verbose == 2:
         argrender(args)
-
 
     if args.optimizer == 'rmsprop':
         optimizer = RMSprop(lr=args.lr)

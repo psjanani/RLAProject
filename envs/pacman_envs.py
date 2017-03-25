@@ -142,7 +142,7 @@ class PacmanEnv(Env):
 			(r,c) = self.random_valid_idx()
 			self.prey_channel[r][c] = 1
 
-		return self.barrier_mask, self.predator_channel, self.prey_channel
+		return self.barrier_mask, self.prey_channel, self.predator_channel
 
 	
 	def _seed(self, seed=None):
@@ -279,7 +279,7 @@ class PacmanEnv(Env):
 
 		is_terminal = self.num_prey == 0
 
-		return [self.barrier_mask, self.predator_channel, self.prey_channel], reward, is_terminal, 'no debug information provided'
+		return [self.barrier_mask,  self.prey_channel, self.predator_channel], reward, is_terminal, 'no debug information provided'
 
 
 # barrier is to parallel barrier

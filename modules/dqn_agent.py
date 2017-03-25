@@ -69,9 +69,13 @@ class DQNAgent:
 		else:
 			raise Exception("This should not happen.  Check boolean instance variables.")
 
-	def calc_q_values(self, model, state):
+	def calc_q_values(self, model, state, expand_dims=False):
+		if expand_dims:
+			state = np.expand_dims(state, axis=0)
+
 		action_mask = np.ones([1, self.num_actions])
 		q_values = model.predict_on_batch([state, action_mask])
+
 		return q_values.flatten()
 
 	def create_buffer(self, env):
@@ -80,13 +84,13 @@ class DQNAgent:
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
 			action_str = ['*'] * self.num_pred
-			S = self.preprocessor.get_state()
+			S = self.preprocessor.get_state(self.id)
 			A = np.random.randint(self.num_actions)
 			action_str[self.id] = str(A)
 			s_prime, R, is_terminal, debug_info = env.step("".join(action_str))
 			self.preprocessor.add_state(s_prime)
 			# get new processed state frames
-			S_prime = self.preprocessor.get_state()
+			S_prime = self.preprocessor.get_state(self.id)
 			R = self.preprocessor.process_reward(R)
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
 			if is_terminal:
@@ -107,6 +111,10 @@ class DQNAgent:
 		state = None
 		for i in range(self.batch_size):
 			true_output = sample[i].reward
+
+			S = sample[i].state
+			S_prime = sample[i].next_state
+
 			if not sample[i].is_terminal:
 				q_values = self.calc_q_values(self.target, sample[i].next_state)
 
@@ -125,15 +133,15 @@ class DQNAgent:
 			# must null out all other actions
 			q_value_index[i][sample[i].action] = 1
 			if state is None:
-				state = sample[i].state
+				state = S
 			else:
-				state = np.append(state, sample[i].state, axis=0)
+				state = np.append(state, S, axis=0)
 
 		return state, q_value_index, true_output_masked
 
-	def select_action(self, S):
+	def select_action(self, S, expand_dims=False):
 		# returns q_values and chosen action (network chooses action and evaluates)
-		q_values = self.calc_q_values(self.network, S)
+		q_values = self.calc_q_values(self.network, S, expand_dims)
 		q_selectors = q_values
 
 		if self.coin_flip:

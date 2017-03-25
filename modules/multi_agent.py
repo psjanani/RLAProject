@@ -78,11 +78,12 @@ class IndependentDQN(MultiAgent):
             while steps < max_episode_length and not is_terminal:
                 # compute step and gather SARS pair
                 S = self.preprocessor.get_state()
+
                 A = {}
                 q_values = {}
                 action_string = ""
                 for i in range(self.number_pred):
-                    A[i], q_values[i] = self.pred_model[i].select_action(S)
+                    A[i], q_values[i] = self.pred_model[i].select_action(S[i])
                     action_string += str(A[i])
 
                 R, is_terminal = self.step(action_string)
@@ -100,7 +101,7 @@ class IndependentDQN(MultiAgent):
                         if num_iters % self.agent_dissemination_freq == 0:
                             get_hard_target_model_updates(self.pred_model[0].network, model.network)
                     else:
-                        model.buffer.append(S, A[i], R[i], S_prime, is_terminal)
+                        model.buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
                         if model.target_fixing and num_iters % model.target_update_freq == 0:
                             get_hard_target_model_updates(model.target, model.network)
                         if num_iters % model.update_freq == 0:
@@ -164,7 +165,9 @@ class IndependentDQN(MultiAgent):
 
                 for i in range(self.number_pred):
                     model = self.pred_model[i]
-                    q_values = model.calc_q_values(model.network, S)
+
+                    q_values = model.calc_q_values(model.network, S[i])
+
                     A[i] = greedy_policy.select_action(q_values)
                     action_string += str(A[i])
                     max_q_val_sum[i] += np.max(q_values)
