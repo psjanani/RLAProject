@@ -4,6 +4,8 @@ import gym
 from keras.optimizers import RMSprop, SGD, Adam, Nadam
 from objectives import mean_huber_loss, huber_loss
 
+from time import sleep
+
 class MultiAgent:
     # A template class for handling the multiple agents and their interactions with environment.
     def evaluate(self, num_episodes):
@@ -90,8 +92,7 @@ class IndependentDQN(MultiAgent):
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
-                    # record last 100_rewards
-                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(10)
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50)
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
 
@@ -134,7 +135,7 @@ class IndependentDQN(MultiAgent):
         self.preprocessor.add_state(s_prime)
         return R, is_terminal
 
-    def evaluate(self, num_episodes=20):
+    def evaluate(self, num_episodes, max_episode_length=1000):
         total_reward = 0.0
         average_q_values = [0.0] * self.number_pred
         rewards = []
@@ -155,13 +156,17 @@ class IndependentDQN(MultiAgent):
             max_q_val_sum = [0] * self.number_pred
             is_terminal = False
 
-            while not is_terminal:
+            while not is_terminal and steps < max_episode_length:
                 S = self.preprocessor.get_state()
 
                 steps += 1
                 total_steps += 1
                 A = {}
                 action_string = ""
+
+                # self.env.render()
+                # print '\n'
+                # sleep(0.5)
 
                 for i in range(self.number_pred):
                     model = self.pred_model[i]

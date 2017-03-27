@@ -5,7 +5,6 @@ import os
 import random
 import gym
 
-
 from modules.dqn_agent import DQNAgent
 from modules.objectives import mean_huber_loss, huber_loss
 from modules.utils import argrender
@@ -23,7 +22,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
     parser.add_argument('--algorithm', default='basic', help='One of basic, replay_target, double')
     parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--coop', default=True, type=bool, help='Coop or compete.')
+    parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--end_epsilon', default=0.05, type=float, help='Steady state epsilon')
     parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
@@ -32,7 +31,6 @@ def main():
     parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
     parser.add_argument('--num_agents', default=4, type=int, help='number of agents = (2* num_pred)')
-    parser.add_argument('-o', '--output', default='atari-v0', help='Directory to save data to')
     parser.add_argument('--initial_epsilon', default=1.0, type=float, help='Initial epsilon pre-decay')
     parser.add_argument('--loss', default='mean_huber', help='mean_huber, huber, mae, or mse.')
     parser.add_argument('--lr', default=0.0001, type=float, help='(initial) learning rate')
@@ -41,7 +39,7 @@ def main():
     parser.add_argument('--momentum', default=0.95, type=float)
     parser.add_argument('--solo_train', default=False, type=bool, help='Whether to train models one at a time or simultaneously.')
     parser.add_argument('--agent_dissemination_freq', default=1e4, type=int, help='If solo training, how frequently to copy trained weights to other untrained agents.')
-    parser.add_argument('--network_name', default='stanford', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
+    parser.add_argument('--network_name', default='linear', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
     parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
     parser.add_argument('--num_decay_steps', default=1e4, type=int, help='Epsilon policy decay length')
@@ -52,6 +50,8 @@ def main():
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
 
     args = parser.parse_args()
+    
+    args.coop = not bool(args.compet)
 
     make_assertions(args)
 

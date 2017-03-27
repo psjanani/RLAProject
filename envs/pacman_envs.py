@@ -283,7 +283,7 @@ class PacmanEnv(Env):
 
 
 # barrier is to parallel barrier
-basic_barriers = [ (2, 2, 6, 2), (2, 6, 6, 2) ]
+basic_barriers = [ (2, 1, 8, 4), (0, 6, 8, 3) ]
 register(
 	id='PacmanEnv-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',

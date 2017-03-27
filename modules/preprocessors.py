@@ -41,11 +41,13 @@ class HistoryPreprocessor(Preprocessor):
     def process_reward(self, reward):
         rewards = [0] * self.num_pred
 
+        reward_val = 1
+
         for num in reward:
             if self.coop:
-                rewards = map(lambda r: r + 1, rewards)
+                rewards = map(lambda r: r + reward_val, rewards)
             else: # just the killer gets rewarded (perverse if you ask me)
-                rewards[int(num)] += 1
+                rewards[int(num) - 1] += reward_val
 
         return rewards
 
@@ -68,8 +70,6 @@ class HistoryPreprocessor(Preprocessor):
 
             decoupled_states[predator_idx - 1, r, c, -2] = 0
             decoupled_states[predator_idx - 1, r, c, -1] = 1
-
-
         if self.model_name == 'linear':
             decoupled_states = decoupled_states.reshape(self.num_pred, self.history_length * self.frame_size[0] * self.frame_size[1] * (self.channels))
 
