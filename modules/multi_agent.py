@@ -141,7 +141,7 @@ class IndependentDQN(MultiAgent):
         rewards = []
 
         # evaluation always uses greedy policy
-        greedy_policy = GreedyEpsilonPolicy(0.05)
+        greedy_policy = GreedyEpsilonPolicy(1)
         total_steps = 0
 
         for i in range(num_episodes):

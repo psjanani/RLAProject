@@ -250,7 +250,7 @@ class PacmanEnv(Env):
 			i += 1
 
 		if self.smart_prey:
-			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, direction='away')
+			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, 'away')
 			actions[self.num_predators: self.num_agents] = smart_actions
 		else:
 			for i in range(self.num_predators, self.num_agents):

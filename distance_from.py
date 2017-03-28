@@ -81,7 +81,8 @@ if __name__ == "__main__":
 	barrier = np.zeros([10, 10])
 	barrier[1:4, 2:] = 1
 	barrier[5:8, 0:8] = 1
-	distance = distanceFrom(barrier, [(0,0), (1, 1)])
+	pts = [(0,0), (9, 9)]
+	distance = distanceFrom(barrier, pts)
 
 	for r in range(10):
 		for c in range(10):
@@ -92,4 +93,4 @@ if __name__ == "__main__":
 			else:
 				print str(distance[r,c]) + "\t",
 
-	print ""
+		print ""
