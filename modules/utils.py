@@ -2,6 +2,7 @@
 
 import semver
 import tensorflow as tf
+from PIL import Image
 
 def render(str, verbose=True):
     if verbose:
@@ -95,3 +96,13 @@ def get_hard_target_model_updates(target, source):
     weights = source.get_weights()
     target.set_weights(weights)
     # Check whats the return value
+
+
+def save_states_as_images(S):
+    for i in range(4):
+        im = Image.fromarray(np.reshape(S[0, :, :, :, i], [10, 10]) * 255.0).convert('L')
+        im.save('im_first_' + str(i) + '.jpg')
+
+    for i in range(4):
+        im = Image.fromarray(np.reshape(S[1, :, :, :, i], [10, 10]) * 255.0).convert('L')
+        im.save('im_second_' + str(i) + '.jpg')

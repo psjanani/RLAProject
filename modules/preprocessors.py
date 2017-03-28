@@ -3,6 +3,8 @@ import numpy as np
 from modules import utils
 from modules.core import Preprocessor
 
+from PIL import Image
+
 class HistoryPreprocessor(Preprocessor):
     """Keeps the last k states.
 
@@ -56,20 +58,27 @@ class HistoryPreprocessor(Preprocessor):
         pred_channel = self.frames[:, :, -1, 0] ## only supports history_length to be 1 for now
         decoupled_states = np.zeros([self.num_pred, self.frame_size[0], self.frame_size[1], self.channels])
 
-        nzs = np.nonzero(pred_channel)
-        nz_ids = pred_channel[nzs]
+        nzs = np.nonzero(pred_channel) # [(4, 1), ( 9, 2 )]
 
-        pred_channel[nzs] = 1 # normalize
+        nz_ids = pred_channel[nzs] # [ 2, 1] 2 is 2nd predator...
+        pred_channel[nzs] = 1
 
         for i in range(self.num_pred):
-            decoupled_states[i, :, :, :self.channels - 1] = np.copy(self.frames[:, :, :self.channels - 1, 0])
+
+            for iter1 in range(self.channels - 1):
+                for r in range(self.frame_size[0]):
+                    for c in range(self.frame_size[1]):
+                        decoupled_states[i, r, c, iter1] = np.copy(self.frames[r, c, iter1, 0])
 
             predator_idx = int(nz_ids[i])
-            r = nzs[i][0]
-            c = nzs[i][1]
+
+            r = nzs[0][i]
+            c = nzs[1][i]
 
             decoupled_states[predator_idx - 1, r, c, -2] = 0
             decoupled_states[predator_idx - 1, r, c, -1] = 1
+
+
         if self.model_name == 'linear':
             decoupled_states = decoupled_states.reshape(self.num_pred, self.history_length * self.frame_size[0] * self.frame_size[1] * (self.channels))
 

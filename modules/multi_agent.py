@@ -26,6 +26,7 @@ class IndependentDQN(MultiAgent):
         self.pred_model = {}
         self.coop = args.coop
         self.gamma = args.gamma
+        self.debug_mode = args.debug_mode
         self.agent_dissemination_freq = args.agent_dissemination_freq
         self.algorithm = args.algorithm
         self.optimizer = optimizer
@@ -141,7 +142,7 @@ class IndependentDQN(MultiAgent):
         rewards = []
 
         # evaluation always uses greedy policy
-        greedy_policy = GreedyEpsilonPolicy(1)
+        greedy_policy = GreedyEpsilonPolicy(0.1)
         total_steps = 0
 
         for i in range(num_episodes):
@@ -175,9 +176,12 @@ class IndependentDQN(MultiAgent):
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
 
-                self.env.render()
-                print('\n')
-                sleep(1)
+                # self.env.render()
+                # print('\n')
+                # sleep(1)
+
+                if self.debug_mode:
+                    save_states_as_images(S)
 
                 R = self.preprocessor.process_reward(R)
                 reward += R[0] * df # same for each predator bc/ it's cooperative
