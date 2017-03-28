@@ -10,6 +10,8 @@ from gym.envs.registration import register
 import random
 import numpy as np
 
+from distance_from import smart_move
+
 class PacmanEnv(Env):
 
 	metadata = {'render.modes': ['human']}
@@ -55,13 +57,15 @@ class PacmanEnv(Env):
 
 		return num_barrier_cells
 
-	def __init__(self, barriers, grid_size, num_agents):
+	def __init__(self, barriers, grid_size, num_agents, smart_prey, smart_predator):
 		# this is total number of agents (must be even number)
 		# half of these agents will be prey and half predators
 		if num_agents % 2 != 0:
 			raise "Argument Error.  Must have even number of agents"
 
 		self.num_agents = num_agents
+		self.smart_prey = smart_prey
+		self.smart_predator = smart_predator
 		self.num_prey = self.num_predators = int(self.num_agents/2)
 
 		self.grid_size = grid_size
@@ -101,7 +105,7 @@ class PacmanEnv(Env):
 
 	def new_location(self, agent_pos, action):
 		# figure out deltas of action
-		deltas = PacmanEnv.ACTION_DELTAS[action]
+		deltas = PacmanEnv.ACTION_DELTAS[int(action)]
 
 		new_agent_pos_r = min(max(agent_pos[0] + deltas[0], 0), self.grid_size - 1)
 		new_agent_pos_c = min(max(agent_pos[1] + deltas[1], 0), self.grid_size - 1)
@@ -186,20 +190,20 @@ class PacmanEnv(Env):
 					indices.append((r,c))
 		return indices
 
-	def resolve_conflicts(self, actions, channel):
+	def find_predator_indices(self):
+		indices = []
+		for i in range(self.num_predators):
+			indices.append(self.predator_state(i + 1))
+		return indices
+
+	def resolve_conflicts(self, actions, curr_positions, channel):
 		next_positions = []
 		didnt_move = []
-
-		if channel == 'predator':
-			curr_positions = []
-			for i in range(len(actions)):
-				curr_positions.append(self.predator_state(i + 1))
-		else:
-			curr_positions = self.find_prey_indices()
 
 		for i in range(len(curr_positions)):
 			action = actions[i]
 			curr_pos = curr_positions[i]
+
 			next_pos = self.new_location(curr_pos, action)
 			didnt_move.append(next_pos == curr_pos)
 			next_positions.append(next_pos)
@@ -221,39 +225,53 @@ class PacmanEnv(Env):
 					if not didnt_move[idx]:
 						next_positions[idx] = curr_positions[idx]
 
-		return curr_positions, next_positions
+		return next_positions
 
 
 	def _step(self, action):
 		action_str = str("".join(action))
-		actions = []
+		actions = np.zeros(self.num_agents)
 
+		curr_predator_pos = self.find_predator_indices()
+		curr_prey_pos = self.find_prey_indices()
+
+		i = 0
 		for action in action_str:
+			action = action_str[i]
 			try:
 				action = int(action)
 			except ValueError:
-				action = np.random.randint(4)
-			actions.append(action)
+				if self.smart_predator:
+					action = smart_move(self.barrier_mask,\
+						curr_predator_pos[i], curr_prey_pos, 'closer')[0]
+				else:
+					action = np.random.randint(4)
+			actions[i] = action
+			i += 1
 
-		for i in range(self.num_agents - len(action_str)):
-			actions.append(np.random.randint(4))
+		if self.smart_prey:
+			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, direction='away')
+			actions[self.num_predators: self.num_agents] = smart_actions
+		else:
+			for i in range(self.num_predators, self.num_agents):
+				actions[i] = np.random.randint(4)
 
 		new_predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 		new_prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 
 		reward = ''
 
-		current_positions, next_positions = self.resolve_conflicts(actions[0:self.num_predators], 'predator')
+		next_positions = self.resolve_conflicts(actions[0:self.num_predators], curr_predator_pos, 'predator')
 
 		for i in range(len(next_positions)):
-			r,c = current_positions[i]
+			r,c = curr_predator_pos[i]
 			new_r, new_c = next_positions[i]
 			new_predator_channel[new_r][new_c] = self.predator_channel[r][c]
 
-		current_positions, next_positions = self.resolve_conflicts(actions[self.num_predators:], 'prey')
+		next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
 
 		for i in range(len(next_positions)):
-			r,c = current_positions[i]
+			r,c = curr_prey_pos[i]
 			new_r, new_c = next_positions[i]
 
 			predator_mark_old = new_predator_channel[r][c]
@@ -287,4 +305,19 @@ basic_barriers = [ (2, 1, 8, 4), (0, 6, 8, 3) ]
 register(
 	id='PacmanEnv-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4})
+	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
+
+register(
+	id='PacmanEnvSmartPrey-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': False})
+
+register(
+	id='PacmanEnvSmartPredators-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': True})
+
+register(
+	id='PacmanEnvSmartBoth-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': True})

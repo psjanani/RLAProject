@@ -164,10 +164,6 @@ class IndependentDQN(MultiAgent):
                 A = {}
                 action_string = ""
 
-                # self.env.render()
-                # print '\n'
-                # sleep(0.5)
-
                 for i in range(self.number_pred):
                     model = self.pred_model[i]
 
@@ -178,6 +174,11 @@ class IndependentDQN(MultiAgent):
                     max_q_val_sum[i] += np.max(q_values)
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
+
+                self.env.render()
+                print('\n')
+                sleep(1)
+
                 R = self.preprocessor.process_reward(R)
                 reward += R[0] * df # same for each predator bc/ it's cooperative
                 self.preprocessor.add_state(s_prime)
