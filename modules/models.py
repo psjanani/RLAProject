@@ -11,17 +11,16 @@ class Models:
 
 class LinearModel(Models):
 
-    def __init__(self, channels, input_shape, num_actions, model_name="linear"):
-        self.channels = channels
+    def __init__(self, input_shape, num_actions, model_name="linear"):
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.model_name = model_name
 
     def create_model(self):
-        state_input = Input(shape=(self.channels * self.input_shape[0] * self.input_shape[1],), name='state_input')
+        state_input = Input(shape=(self.input_shape[0] * self.input_shape[1],), name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        dense1 = Dense(512, activation='sigmoid')(state_input)
+        dense1 = Dense(128, activation='sigmoid')(state_input)
         dense2 = Dense(64, activation='sigmoid')(dense1)
 
         action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense2)
@@ -32,14 +31,13 @@ class LinearModel(Models):
 
 class StanfordModel(Models):
 
-    def __init__(self, channels, input_shape, num_actions, model_name="stanford"):
-        self.channels = channels
+    def __init__(self, input_shape, num_actions, model_name="stanford"):
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.model_name = model_name
 
     def create_model(self):
-        img_dims = (self.input_shape[0], self.input_shape[1], self.channels)
+        img_dims = (self.input_shape[0], self.input_shape[1])
         state_input = Input(shape=img_dims, name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
@@ -73,22 +71,24 @@ class StanfordModel(Models):
 
 class DeepQModel(Models):
 
-    def __init__(self, channels, input_shape, num_actions, model_name="deep"):
-        self.channels = channels
+    def __init__(self, input_shape, num_actions, model_name="deep"):
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.model_name = model_name
 
     def create_model(self):
-        # 10 x 10 x channels (3 or 4)
-        img_dims = (self.input_shape[0], self.input_shape[1], self.channels)
+        # 10 x 10 x channels (1)
+        img_dims = (self.input_shape[0], self.input_shape[1], 1)
         state_input = Input(shape=img_dims, name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        conv = Convolution2D(32, 2, 2, activation='relu',
-                                   border_mode='same', subsample=(2,2))(state_input)
+        conv = Convolution2D(16, 4, 4, activation='relu',
+                                   border_mode='same', subsample=(2, 2))(state_input)
 
-        flatten = Flatten()(conv)
+        conv2 = Convolution2D(32, 2, 2, activation='relu',
+            border_mode='same', subsample=(1, 1))(conv)
+
+        flatten = Flatten()(conv2)
 
         if "dueling" in self.model_name:
             value_stream = Dense(512, activation='relu')(flatten)
@@ -109,11 +109,9 @@ class DeepQModel(Models):
 
             merged_action = merge(inputs=[rep_value, advan_merge], mode='sum', name='merged_action')
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
-
         else:
-            dense_layer1 = Dense(256, activation='sigmoid')(flatten)
-            dense_layer2 = Dense(64, activation='sigmoid')(dense_layer1)
-            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer2)
+            dense_layer1 = Dense(64, activation='sigmoid')(flatten)
+            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer1)
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 
         model = Model(input=[state_input, action_mask], output=masked_output)

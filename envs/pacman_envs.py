@@ -50,7 +50,7 @@ class PacmanEnv(Env):
 
 			for r in range(start_row, start_row + height):
 				for c in range(start_col, start_col + width):
-					self.barrier_mask[r][c] = 1
+					self.barrier_mask[r][c] = -1
 
 
 			num_barrier_cells += height*width
@@ -70,12 +70,11 @@ class PacmanEnv(Env):
 
 		self.grid_size = grid_size
 
-		# mask is 1 where there is a barrier
-		self.barrier_mask = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
-		num_barrier_cells = self.fill_in_barrier_mask(barriers)
+		# mask is -1 where there is a barrier
+		self.num_barrier_cells = self.fill_in_barrier_mask(barriers)
 
 		# free cells available to be roamed
-		free_cells = (self.grid_size * self.grid_size) - num_barrier_cells
+		free_cells = (self.grid_size * self.grid_size) - self.num_barrier_cells
 
 		# simple probability calculation
 		self.nS = free_cells * (free_cells - 1)
@@ -116,6 +115,7 @@ class PacmanEnv(Env):
 			return agent_pos
 
 	def random_valid_idx(self):
+
 		full_positions = np.add(np.add(self.prey_channel, self.predator_channel), self.barrier_mask)
 
 		(row, col) = self.random_idx()
@@ -170,7 +170,7 @@ class PacmanEnv(Env):
 	def _render(self, mode='human', close=False):
 		for r in range(self.grid_size):
 			for c in range(self.grid_size):
-				if self.barrier_mask[r][c] != 0:
+				if self.barrier_mask[r][c] == -1:
 					print(PacmanEnv.MARKS['barrier'], end=' ')
 				elif self.prey_channel[r][c] != 0:
 					print(PacmanEnv.MARKS['prey'], end=' ')
@@ -250,7 +250,7 @@ class PacmanEnv(Env):
 			i += 1
 
 		if self.smart_prey:
-			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, 'away')
+			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, 'closer')
 			if np.shape(smart_actions)[0] == 0:
 				for i in range(self.num_predators, self.num_agents):
 					actions[i] = np.random.randint(4)
@@ -279,7 +279,7 @@ class PacmanEnv(Env):
 		#### TODO UNCOMMENT LATER
 		####
 		####
-		# next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
+		next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
 
 		for i in range(len(next_positions)):
 			r,c = curr_prey_pos[i]
@@ -311,12 +311,12 @@ class PacmanEnv(Env):
 		return [self.barrier_mask,  self.prey_channel, self.predator_channel], reward, is_terminal, 'no debug information provided'
 
 
-# barrier is to parallel barrier
-basic_barriers = [ (2, 1, 8, 4), (0, 6, 8, 3) ]
+basic_barriers = [ (2, 2, 6, 6) ]
+advanced_barrier = [ (2, 1, 8, 4), (0, 6, 8, 3) ]
 register(
 	id='PacmanEnv-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
+	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':2, 'smart_prey': True, 'smart_predator': False})
 
 register(
 	id='PacmanEnvSmartPrey-v0',

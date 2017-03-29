@@ -21,9 +21,8 @@ class HistoryPreprocessor(Preprocessor):
 
     """
 
-    def __init__(self, frame_size, model_name, num_pred, coop, channels, history_length=1):
+    def __init__(self, frame_size, model_name, num_pred, coop, history_length=1):
         self.history_length = history_length
-        self.channels = channels
         self.model_name = model_name
         self.coop = coop
         self.num_pred = num_pred
@@ -32,11 +31,14 @@ class HistoryPreprocessor(Preprocessor):
         self.reset()
 
     def add_state(self, state):
-        state = np.transpose(state, (1, 2, 0))
+        state = np.array(state)
+        prey_channel = state[1][:][:]
+        prey_idxs = np.nonzero(prey_channel)
+        prey_channel[prey_idxs] = -2
 
-        self.frames[:,:,:,:self.history_length - 1] = self.frames[:,:,:,1:]
+        state = np.add(np.add(state[0, :, :], state[1, :, :]), state[2, :, :])
 
-        self.frames[:,:,:,-1] = state
+        self.frames = state
 
         return self.frames
 
@@ -53,42 +55,36 @@ class HistoryPreprocessor(Preprocessor):
 
         return rewards
 
-    def get_state(self, id=None): # if id is passed only create state for that particular agent
+    def get_state(self, id=None):
+        # if id is passed only create state for that particular agent
         # break predator state in last channel into self and others (normalize all to 1s)
-        pred_channel = self.frames[:, :, -1, 0] ## only supports history_length to be 1 for now
-        decoupled_states = np.zeros([self.num_pred, self.frame_size[0], self.frame_size[1], self.channels])
+        full_frames = np.zeros([self.num_pred, self.frame_size[0], self.frame_size[1]])
 
-        nzs = np.nonzero(pred_channel) # [(4, 1), ( 9, 2 )]
+        pred_idxs = np.nonzero(self.frames > 0) # [(4, 1), ( 9, 2 )]
 
-        nz_ids = pred_channel[nzs] # [ 2, 1] 2 is 2nd predator...
-        pred_channel[nzs] = 1
+        nz_ids = self.frames[pred_idxs] # [ 2, 1] 2 is 2nd predator...
+        self.frames[pred_idxs] = 1
 
         for i in range(self.num_pred):
+            my_frame = np.copy(self.frames)
+            predator_id = int(nz_ids[i])
 
-            for iter1 in range(self.channels - 1):
-                for r in range(self.frame_size[0]):
-                    for c in range(self.frame_size[1]):
-                        decoupled_states[i, r, c, iter1] = np.copy(self.frames[r, c, iter1, 0])
+            r = pred_idxs[0][i]
+            c = pred_idxs[1][i]
 
-            predator_idx = int(nz_ids[i])
-
-            r = nzs[0][i]
-            c = nzs[1][i]
-
-            decoupled_states[predator_idx - 1, r, c, -2] = 0
-            decoupled_states[predator_idx - 1, r, c, -1] = 1
+            my_frame[r, c] = 2
+            full_frames[predator_id - 1, :, :] = my_frame
 
         if self.model_name == 'linear':
-            decoupled_states = decoupled_states.reshape(self.num_pred, self.history_length * self.frame_size[0] * self.frame_size[1] * (self.channels))
+            return full_frame.reshape(self.num_pred, self.frame_size[0] * self.frame_size[1])
 
         if not id is None:
-            return np.expand_dims(decoupled_states[id], axis=0)
+            return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)
 
-        return np.expand_dims(decoupled_states, axis=1)
-
+        return np.expand_dims(np.expand_dims(full_frames, axis=-1), axis=1)
 
     def reset(self):
-        self.frames = np.zeros([self.frame_size[0], self.frame_size[1], self.channels - 1, self.history_length])
+        self.frames = np.zeros([self.frame_size[0], self.frame_size[1]])
 
     def get_config(self):
         return {'history_length': self.history_length}

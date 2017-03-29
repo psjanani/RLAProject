@@ -35,13 +35,13 @@ class IndependentDQN(MultiAgent):
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
-            self.m = LinearModel(args.channels, (args.dim, args.dim), args.num_actions)
+            self.m = LinearModel((args.dim, args.dim), args.num_actions)
 
         if (model_name == 'stanford'):
-            self.m = StanfordModel(args.channels, (args.dim, args.dim), args.num_actions)
+            self.m = StanfordModel((args.dim, args.dim), args.num_actions)
 
         if (model_name == 'deep' or 'dueling' in model_name):
-            self.m = DeepQModel(args.channels, (args.dim, args.dim), args.num_actions, model_name)
+            self.m = DeepQModel((args.dim, args.dim), args.num_actions, model_name)
 
     def create_model(self, env, args):
         self.model_init(args)
@@ -64,7 +64,7 @@ class IndependentDQN(MultiAgent):
         return model
 
     def model_init(self, args):
-        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.channels, args.history)
+        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.history)
 
     def fit(self, num_iterations, eval_num, max_episode_length=None):
         best_reward = -float('inf')
@@ -95,7 +95,7 @@ class IndependentDQN(MultiAgent):
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
-                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(1)
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 25, num_iters % 50000 == 0)
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
                     if self.args.save_weights:
@@ -126,7 +126,7 @@ class IndependentDQN(MultiAgent):
         model.save('end_model.h5')
 
         # record last 100_rewards
-        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(1)
+        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 25, num_iters % 50000 == 0)
         print(str(num_iters) + '(final):\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
             + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
         if self.args.save_weights:
@@ -147,13 +147,13 @@ class IndependentDQN(MultiAgent):
         self.preprocessor.add_state(s_prime)
         return R, is_terminal
 
-    def evaluate(self, num_episodes, max_episode_length=25):
+    def evaluate(self, num_episodes, max_episode_length, to_render):
         total_reward = 0.0
         average_q_values = [0.0] * self.number_pred
         rewards = []
 
         # evaluation always uses greedy policy
-        greedy_policy = GreedyEpsilonPolicy(0.1)
+        greedy_policy = GreedyEpsilonPolicy(0.0)
         total_steps = 0
 
         for i in range(num_episodes):
@@ -176,19 +176,20 @@ class IndependentDQN(MultiAgent):
                 A = {}
                 action_string = ""
 
-                for i in range(self.number_pred):
-                    model = self.pred_model[i]
+                for j in range(self.number_pred):
+                    model = self.pred_model[j]
 
-                    q_values = model.calc_q_values(model.network, S[i])
+                    q_values = model.calc_q_values(model.network, S[j])
 
-                    A[i] = greedy_policy.select_action(q_values)
-                    action_string += str(A[i])
-                    max_q_val_sum[i] += np.max(q_values)
+                    A[j] = greedy_policy.select_action(q_values)
+                    action_string += str(A[j])
+                    max_q_val_sum[j] += np.max(q_values)
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
-               # self.env.render()
-               # print('\n')
-               # sleep(1)
+
+                if to_render and i == 0:
+                    self.env.render()
+                    print('\n')
 
                 if self.debug_mode:
                     save_states_as_images(S)

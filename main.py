@@ -47,9 +47,9 @@ def main():
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
     parser.add_argument('--update_freq', default=1, type=int, help='Update frequency.')
-    parser.add_argument('--verbose', default=0, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
+    parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
     parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
-    parser.add_argument('--weight_path', default='/Users/janani/weights/a2_fixtarget', type=str, help='To save weight at eval frequency')
+    parser.add_argument('--weight_path', default='/Users/griffinadams/Desktop/RLAProject/weights/single_agent', type=str, help='To save weight at eval frequency')
 
     args = parser.parse_args()
     
@@ -74,10 +74,8 @@ def main():
 
     if 'Pacman' in args.env:
         args.num_actions = 4
-        args.channels = 4
     elif 'Warehouse' in args.env:
         args.num_actions = 6
-        args.channels = 4
     else:
         args.num_actions = env.action_space.n
         ## not sure
@@ -102,7 +100,6 @@ def main():
         loss = huber_loss
     else:
         loss = args.loss
-
 
     # Create the multi-Agent setting
     multiagent = IndependentDQN(args.num_agents, args.network_name, args, optimizer, loss)

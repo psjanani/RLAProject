@@ -23,7 +23,7 @@ def smart_move(barrier, my_pts, other_pts, direction='closer'):
 		for j in range(NUM_A):
 			new_pt = (pt[0] + ACTION_DELTAS[j][0],  pt[1] + ACTION_DELTAS[j][1])
 
-			if new_pt[0] < 0 or new_pt[1] < 0 or new_pt[0] >= ROWS or new_pt[1] >= COLS:
+			if new_pt[0] < 0 or new_pt[1] < 0 or new_pt[0] >= ROWS or new_pt[1] >= COLS or distance[new_pt] == -1:
 				distances[j] = distance[pt]
 			else:
 				distances[j] = distance[new_pt]
@@ -78,9 +78,9 @@ def distanceFrom(barrier, pts):
 
 if __name__ == "__main__":
 	print "for demo_purposes..."
-	barrier = np.zeros([10, 10])
-	barrier[1:4, 2:] = 1
-	barrier[5:8, 0:8] = 1
+	barrier = np.ones([10, 10])
+	barrier[1:4, 2:] = -1
+	barrier[5:8, 0:8] = -1
 	pts = [(0,0), (9, 9)]
 	distance = distanceFrom(barrier, pts)
 

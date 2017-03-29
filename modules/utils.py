@@ -98,10 +98,7 @@ def get_hard_target_model_updates(target, source):
 
 
 def save_states_as_images(S):
-    for i in range(4):
-        im = Image.fromarray(np.reshape(S[0, :, :, :, i], [10, 10]) * 255.0).convert('L')
-        im.save('im_first_' + str(i) + '.jpg')
-
-    # for i in range(4):
-    #     im = Image.fromarray(np.reshape(S[1, :, :, :, i], [10, 10]) * 255.0).convert('L')
-    #     im.save('im_second_' + str(i) + '.jpg')
+    s = np.reshape(S[0, :, :, :], [10, 10])
+    s = (s + 2.0)/(4.0) * 255
+    im = Image.fromarray(s).convert('L')
+    im.save('im_first.jpg')
