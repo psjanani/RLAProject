@@ -19,13 +19,13 @@ def make_assertions(args):
     assert algo == 'basic' or algo == 'replay_target' or algo == 'double'
 
 def main():
-    parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
+    parser = argparse.ArgumentParser(description='Run DQN on Pacman!')
     parser.add_argument('--algorithm', default='basic', help='One of basic, replay_target, double')
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
     parser.add_argument('--end_epsilon', default=0.05, type=float, help='Steady state epsilon')
-    parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
+    parser.add_argument('--env', default='PacmanEnvSmartPrey-v0', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
     parser.add_argument('--eval_num', default=25, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')

@@ -90,7 +90,15 @@ class PacmanEnv(Env):
 		self.observation_space = spaces.Discrete(self.nS)
 
 		self.random_start = True
-		self.fixed_points = [(0,0), (9, 9)]
+		self.num_fixed_start_configs = 5
+		self.fixed_points = np.zeros([self.num_fixed_start_configs, self.num_agents, 2])
+
+		for j in range(self.num_fixed_start_configs):
+			full_positions = np.copy(self.barrier_mask)
+			for i in range(self.num_agents):
+				(r,c) = self.random_valid_idx(full_positions)
+				self.fixed_points[j, i, :] = [r,c]
+				full_positions[r, c] = 1
 		
 		self._seed()
 		self._reset()
@@ -117,9 +125,10 @@ class PacmanEnv(Env):
 		else:
 			return agent_pos
 
-	def random_valid_idx(self):
+	def random_valid_idx(self, full_positions=None):
 
-		full_positions = np.add(np.add(self.prey_channel, self.predator_channel), self.barrier_mask)
+		if full_positions is None:
+			full_positions = np.add(np.add(self.prey_channel, self.predator_channel), self.barrier_mask)
 
 		(row, col) = self.random_idx()
 
@@ -140,23 +149,26 @@ class PacmanEnv(Env):
 		self.predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 		self.prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 
+		fixed_points = self.fixed_points[np.random.randint(self.num_fixed_start_configs)]
+		np.random.shuffle(fixed_points)
+
 		placement_idx = 0
 		# random placement of predators first
 		for i in range(1, self.num_predators + 1):
 			if self.random_start:
 				(r,c) = self.random_valid_idx()
 			else:
-				(r, c) = self.fixed_points[placement_idx]
+				(r, c) = fixed_points[placement_idx]
 				placement_idx += 1
-			self.predator_channel[r][c] = i
+			self.predator_channel[int(r)][int(c)] = i
 
 		for i in range(1, self.num_prey + 1):
 			if self.random_start:
 				(r,c) = self.random_valid_idx()
 			else:
-				(r, c) = self.fixed_points[placement_idx]
+				(r, c) = fixed_points[placement_idx]
 				placement_idx += 1
-			self.prey_channel[r][c] = 1
+			self.prey_channel[int(r)][int(c)] = 1
 
 
 		self.random_start = False
@@ -331,14 +343,14 @@ register(
 register(
 	id='PacmanEnvSmartPrey-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': False})
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': False})
 
 register(
 	id='PacmanEnvSmartPredators-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': True})
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': True})
 
 register(
 	id='PacmanEnvSmartBoth-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': True})
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': True})
