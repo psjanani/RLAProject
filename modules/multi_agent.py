@@ -81,7 +81,6 @@ class IndependentDQN(MultiAgent):
             while steps < max_episode_length and not is_terminal:
                 # compute step and gather SARS pair
                 S = self.preprocessor.get_state()
-                print steps
                 A = {}
                 q_values = {}
                 action_string = ""
@@ -93,9 +92,13 @@ class IndependentDQN(MultiAgent):
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 1:
-                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(5)
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(1)
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
+                    if self.args.save_weights:
+                        for i in range(self.number_pred):
+                            model = self.pred_model[i].network
+                            model.save(self.args.weight_path + "_" + str(num_iters) + "_" + str(i) + ".hd5")
 
                 for i in range(self.number_pred):
                     model = self.pred_model[i]
@@ -118,13 +121,13 @@ class IndependentDQN(MultiAgent):
                     break
 
         # record last 100_rewards
-        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(5)
+        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(1)
         print(str(num_iters) + '(final):\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
             + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
         if self.args.save_weights:
             for i in range(self.number_pred):
                 model = self.pred_model[i]
-                model.save(str(num_iters)+"_"+self.args.weight_path+"_"+str(i))
+                model.save(self.args.weight_path+"_"+str(num_iters)+"_"+str(i) + ".hd5")
         # TODO SAVE BEST_WEIGHTS = best_weights
         if(type(best_reward)==float):
             print best_reward
@@ -180,7 +183,7 @@ class IndependentDQN(MultiAgent):
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
 
                 # self.env.render()
-                # print('\n')
+                # print(action_string)
                 # sleep(1)
 
                 if self.debug_mode:
