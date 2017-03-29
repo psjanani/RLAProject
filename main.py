@@ -37,7 +37,7 @@ def main():
     parser.add_argument('--max_episode_length', default=500, type=int, help='Max episode length (for training, not eval).')
     parser.add_argument('--memory', default=1e6, type=int, help='size of buffer for experience replay')
     parser.add_argument('--momentum', default=0.95, type=float)
-    parser.add_argument('--solo_train', default=False, type=bool, help='Whether to train models one at a time or simultaneously.')
+    parser.add_argument('--solo_train', default=True, type=bool, help='Whether to train models one at a time or simultaneously.')
     parser.add_argument('--agent_dissemination_freq', default=1e4, type=int, help='If solo training, how frequently to copy trained weights to other untrained agents.')
     parser.add_argument('--network_name', default='deep', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
@@ -47,7 +47,9 @@ def main():
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
     parser.add_argument('--update_freq', default=1, type=int, help='Update frequency.')
-    parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
+    parser.add_argument('--verbose', default=0, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
+    parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
+    parser.add_argument('--weight_path', default='/Users/janani/weights/a2_fixtarget', type=str, help='To save weight at eval frequency')
 
     args = parser.parse_args()
     
@@ -104,8 +106,13 @@ def main():
 
     # Create the multi-Agent setting
     multiagent = IndependentDQN(args.num_agents, args.network_name, args, optimizer, loss)
-    model = multiagent.create_model(env, args)
-    model.summary()
+    multiagent.create_model(env, args)
+    if args.save_weights:
+        for i in range(multiagent.number_pred):
+            model = multiagent.pred_model[i].network
+            model_json = model.to_json()
+            with open(args.weight_path +"model" + str(i) + ".json", "w") as json_file:
+                json_file.write(model_json)
     multiagent.fit(args.num_iterations, args.eval_num, args.max_episode_length)
 
 
