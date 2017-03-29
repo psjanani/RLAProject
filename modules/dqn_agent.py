@@ -53,7 +53,7 @@ class DQNAgent:
 		self.update_freq = int(args.update_freq)
 		self.coin_flip = self.algorithm == 'double' and self.network_name == 'linear'
 		# 'basic' algorithm has no target fixing or experience replay
-		self.target_fixing = not self.algorithm == 'basic' and not self.coin_flip
+		self.target_fixing = not self.coin_flip
 		self.verbose = args.verbose > 0
 		self.preprocessor = preprocessor
 		self.policy = LinearDecayGreedyEpsilonPolicy(args.initial_epsilon, args.end_epsilon, args.num_decay_steps)
@@ -153,7 +153,7 @@ class DQNAgent:
 	def update_model(self, num_iters):
 		minibatch, q_value_index, true_output_masked = self.get_minibatch()
 		loss = self.network.train_on_batch([minibatch, q_value_index], true_output_masked)
-		render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
+		# render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
 
 	def switch_roles(self):
 		should_switch = np.random.rand() < 0.5

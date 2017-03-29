@@ -251,7 +251,11 @@ class PacmanEnv(Env):
 
 		if self.smart_prey:
 			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, 'away')
-			actions[self.num_predators: self.num_agents] = smart_actions
+			if np.shape(smart_actions)[0] == 0:
+				for i in range(self.num_predators, self.num_agents):
+					actions[i] = np.random.randint(4)
+			else:
+				actions[self.num_predators: self.num_agents] = smart_actions
 		else:
 			for i in range(self.num_predators, self.num_agents):
 				actions[i] = np.random.randint(4)
@@ -268,7 +272,14 @@ class PacmanEnv(Env):
 			new_r, new_c = next_positions[i]
 			new_predator_channel[new_r][new_c] = self.predator_channel[r][c]
 
-		next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
+		next_positions = curr_prey_pos
+		
+		####
+		####
+		#### TODO UNCOMMENT LATER
+		####
+		####
+		# next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
 
 		for i in range(len(next_positions)):
 			r,c = curr_prey_pos[i]
