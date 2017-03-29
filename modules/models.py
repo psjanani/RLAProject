@@ -85,7 +85,6 @@ class DeepQModel(Models):
         state_input = Input(shape=img_dims, name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        # The first hidden layer convolves 32 8 x 8 filters with stride 4
         conv = Convolution2D(32, 2, 2, activation='relu',
                                    border_mode='same', subsample=(2,2))(state_input)
 
@@ -112,8 +111,9 @@ class DeepQModel(Models):
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
 
         else:
-            dense_layer = Dense(512, activation='sigmoid')(flatten)
-            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer)
+            dense_layer1 = Dense(256, activation='sigmoid')(flatten)
+            dense_layer2 = Dense(64, activation='sigmoid')(dense_layer1)
+            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer2)
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 
         model = Model(input=[state_input, action_mask], output=masked_output)

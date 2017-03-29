@@ -43,7 +43,7 @@ class HistoryPreprocessor(Preprocessor):
     def process_reward(self, reward):
         rewards = [0] * self.num_pred
 
-        reward_val = 1
+        reward_val = 10
 
         for num in reward:
             if self.coop:
