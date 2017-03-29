@@ -88,6 +88,9 @@ class PacmanEnv(Env):
 		)
 
 		self.observation_space = spaces.Discrete(self.nS)
+
+		self.random_start = True
+		self.fixed_points = [(0,0), (9, 9)]
 		
 		self._seed()
 		self._reset()
@@ -137,14 +140,26 @@ class PacmanEnv(Env):
 		self.predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 		self.prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 
+		placement_idx = 0
 		# random placement of predators first
 		for i in range(1, self.num_predators + 1):
-			(r,c) = self.random_valid_idx()
+			if self.random_start:
+				(r,c) = self.random_valid_idx()
+			else:
+				(r, c) = self.fixed_points[placement_idx]
+				placement_idx += 1
 			self.predator_channel[r][c] = i
 
 		for i in range(1, self.num_prey + 1):
-			(r,c) = self.random_valid_idx()
+			if self.random_start:
+				(r,c) = self.random_valid_idx()
+			else:
+				(r, c) = self.fixed_points[placement_idx]
+				placement_idx += 1
 			self.prey_channel[r][c] = 1
+
+
+		self.random_start = False
 
 		return self.barrier_mask, self.prey_channel, self.predator_channel
 
@@ -274,11 +289,6 @@ class PacmanEnv(Env):
 
 		next_positions = curr_prey_pos
 		
-		####
-		####
-		#### TODO UNCOMMENT LATER
-		####
-		####
 		next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
 
 		for i in range(len(next_positions)):

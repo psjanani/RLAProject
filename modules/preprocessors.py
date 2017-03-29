@@ -63,6 +63,8 @@ class HistoryPreprocessor(Preprocessor):
         pred_idxs = np.nonzero(self.frames > 0) # [(4, 1), ( 9, 2 )]
 
         nz_ids = self.frames[pred_idxs] # [ 2, 1] 2 is 2nd predator...
+
+
         self.frames[pred_idxs] = 1
 
         for i in range(self.num_pred):

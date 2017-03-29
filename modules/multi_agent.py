@@ -160,6 +160,7 @@ class IndependentDQN(MultiAgent):
             reward = 0.0
             df = 1.0
 
+            self.env.random_start = False
             s = self.env.reset()
             self.preprocessor.reset()
             self.preprocessor.add_state(s)
