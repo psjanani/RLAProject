@@ -84,20 +84,12 @@ class DeepQModel(Models):
         img_dims = (self.input_shape[0], self.input_shape[1], self.channels)
         state_input = Input(shape=img_dims, name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
-        state_input_norm = BatchNormalization()(state_input)
 
         # The first hidden layer convolves 32 8 x 8 filters with stride 4
-        first_conv = Convolution2D(32, 8, 8, activation='relu',
-                                   border_mode='same', subsample=(4, 4))(state_input_norm)
-        # convolves 64 4 x 4 filters with stride 2
-        second_conv = Convolution2D(64, 4, 4, activation='relu',
-                                    border_mode='same', subsample=(2, 2))(first_conv)
+        conv = Convolution2D(32, 2, 2, activation='relu',
+                                   border_mode='same', subsample=(2,2))(state_input)
 
-        # convolves 64 3 x 3 filters with stride 1
-        third_conv = Convolution2D(64, 3, 3, activation='relu',
-                                   border_mode='same', subsample=(1, 1))(second_conv)
-
-        flatten = Flatten()(third_conv)
+        flatten = Flatten()(conv)
 
         if "dueling" in self.model_name:
             value_stream = Dense(512, activation='relu')(flatten)
@@ -120,7 +112,7 @@ class DeepQModel(Models):
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
 
         else:
-            dense_layer = Dense(512, activation='relu')(flatten)
+            dense_layer = Dense(512, activation='sigmoid')(flatten)
             action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer)
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 

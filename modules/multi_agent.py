@@ -60,6 +60,8 @@ class IndependentDQN(MultiAgent):
                     buffer = NaiveReplay(args.memory, not self.algorithm == 'basic', None)
             self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
 
+        return model
+
     def model_init(self, args):
         self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.channels, args.history)
 
@@ -202,3 +204,4 @@ class IndependentDQN(MultiAgent):
         avg_q, avg_reward = np.sum(np.array(average_q_values)) / (num_episodes * self.number_pred), total_reward / num_episodes
         avg_steps = total_steps / num_episodes
         return avg_reward, avg_q, avg_steps, np.max(rewards), np.std(rewards)
+

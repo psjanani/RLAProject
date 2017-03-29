@@ -78,12 +78,11 @@ class HistoryPreprocessor(Preprocessor):
             decoupled_states[predator_idx - 1, r, c, -2] = 0
             decoupled_states[predator_idx - 1, r, c, -1] = 1
 
-
         if self.model_name == 'linear':
             decoupled_states = decoupled_states.reshape(self.num_pred, self.history_length * self.frame_size[0] * self.frame_size[1] * (self.channels))
 
         if not id is None:
-            return np.expand_dims(np.transpose(decoupled_states[id]), axis=0)
+            return np.expand_dims(decoupled_states[id], axis=0)
 
         return np.expand_dims(decoupled_states, axis=1)
 
