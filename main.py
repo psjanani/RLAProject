@@ -49,6 +49,8 @@ def main():
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
     parser.add_argument('--update_freq', default=1, type=int, help='Update frequency.')
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
+    parser.add_argument('--save_weights', default=False, type=bool, help='To save weight at eval frequency')
+    parser.add_argument('--weight_path', default='/Users/janani/weights/', type=str, help='To save weight at eval frequency')
 
     args = parser.parse_args()
     
@@ -104,6 +106,12 @@ def main():
     # Create the multi-Agent setting
     multiagent = IndependentDQN(args.num_agents, args.network_name, args, optimizer, loss)
     multiagent.create_model(env, args)
+    if args.save_weights:
+        for i in range(multiagent.number_pred):
+            model = multiagent.pred_model[i].network
+            model_json = model.to_json()
+            with open(args.weight_path +"model" + str(i) + ".json", "w") as json_file:
+                json_file.write(model_json)
     multiagent.fit(args.num_iterations, args.eval_num, args.max_episode_length)
 
 
