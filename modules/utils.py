@@ -7,6 +7,7 @@ def render(str, verbose=True):
     if verbose:
         print(str)
 
+
 def argrender(args):
     for arg in vars(args):
         render(arg + '=' + str(getattr(args, arg)), args.verbose)

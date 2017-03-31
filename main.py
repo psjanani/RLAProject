@@ -11,6 +11,8 @@ from modules.utils import argrender
 from modules.models import *
 from modules.multi_agent import *
 import envs.pacman_envs
+from os.path import expanduser
+
 
 def make_assertions(args):
     algo = args.algorithm
@@ -20,7 +22,7 @@ def make_assertions(args):
 
 def main():
     parser = argparse.ArgumentParser(description='Run DQN on Pacman!')
-    parser.add_argument('--algorithm', default='basic', help='One of basic, replay_target, double')
+    parser.add_argument('--algorithm', default='replay_target', help='One of basic, replay_target, double')
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
@@ -50,8 +52,8 @@ def main():
     parser.add_argument('--update_freq', default=1, type=int, help='Update frequency.')
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
     parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
-    parser.add_argument('--weight_path', default='/Users/griffinadams/Desktop/RLAProject/weights/007_double_agent', type=str, help='To save weight at eval frequency')
-
+    parser.add_argument('--weight_path', default='~/weights/', type=str, help='To save weight at eval frequency')
+    parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
     args = parser.parse_args()
     
     args.coop = not bool(args.compet)
@@ -65,6 +67,9 @@ def main():
     env = gym.make(args.env)
     args.num_agents = env.num_agents
 
+    if args.v == 'def':
+        print "You might want to name your experiment for later reference"
+
     args.dim = env.grid_size
 
     if 'Pacman' in args.env:
@@ -74,6 +79,18 @@ def main():
     else:
         args.num_actions = env.action_space.n
         ## not sure
+    args.weight_path = expanduser(args.weight_path)
+    mypath = args.weight_path + "/" + args.v
+    if not os.path.isdir(mypath):
+        os.makedirs(mypath)
+
+    LOG_FILENAME = args.weight_path + args.v + ".log"
+    f = open(LOG_FILENAME, 'w')
+    for key in vars(env):
+        f.write(str(key) + '=' + str(getattr(env, key)) + "\n")
+    for arg in vars(args):
+        f.write(arg + '=' + str(getattr(args, arg)) + "\n")
+    f.close()
 
     if args.verbose == 2:
         argrender(args)
@@ -103,7 +120,7 @@ def main():
         for i in range(multiagent.number_pred):
             model = multiagent.pred_model[i].network
             model_json = model.to_json()
-            with open(args.weight_path +"model" + str(i) + ".json", "w") as json_file:
+            with open(args.weight_path + args.v +"/model" + str(i) + ".json", "w") as json_file:
                 json_file.write(model_json)
     multiagent.fit(args.num_iterations, args.eval_num, args.max_episode_length)
 
