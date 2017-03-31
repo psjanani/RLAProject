@@ -1,0 +1,6 @@
+weights/*
+*.hd5
+weights/*.hd5
+weights
+weights/*.json
+*jpg

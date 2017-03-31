@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
     parser.add_argument('--end_epsilon', default=0.05, type=float, help='Steady state epsilon')
-    parser.add_argument('--env', default='PacmanEnvSmartPrey-v0', help='Env name')
+    parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
     parser.add_argument('--eval_num', default=25, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
@@ -46,6 +46,7 @@ def main():
     parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
     parser.add_argument('--num_decay_steps', default=1e6, type=int, help='Epsilon policy decay length')
     parser.add_argument('--num_iterations', default=1e6, type=int, help='Number frames visited for training.')
+    parser.add_argument('--smart_burn_in', default=False, type=bool)
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
     parser.add_argument('--update_freq', default=1, type=int, help='Update frequency.')
@@ -61,12 +62,6 @@ def main():
 
     if args.test_mode:
         args.verbose = 0
-
-    # basic uses no experience replay so
-    # buffer only holds latest #batch_size examples
-    if args.algorithm == 'basic':
-        args.memory = args.batch_size
-        args.num_burn_in = args.batch_size
 
     # make environment
     env = gym.make(args.env)
