@@ -50,7 +50,7 @@ def main():
     parser.add_argument('--update_freq', default=1, type=int, help='Update frequency.')
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
     parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
-    parser.add_argument('--weight_path', default='/Users/griffinadams/Desktop/RLAProject/weights/single_agent', type=str, help='To save weight at eval frequency')
+    parser.add_argument('--weight_path', default='/Users/griffinadams/Desktop/RLAProject/weights/007_double_agent', type=str, help='To save weight at eval frequency')
 
     args = parser.parse_args()
     

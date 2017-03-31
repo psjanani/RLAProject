@@ -335,6 +335,8 @@ class PacmanEnv(Env):
 
 		is_terminal = self.num_prey == 0
 
+		self.latest_first_pred_action = int(actions[0])
+
 		return [self.barrier_mask,  self.prey_channel, self.predator_channel], reward, is_terminal, 'no debug information provided'
 
 
