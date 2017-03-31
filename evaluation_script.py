@@ -6,13 +6,23 @@ import gym
 from modules.policy import GreedyEpsilonPolicy
 import gym
 import time
-
+import envs.pacman_envs
 from keras.models import model_from_json
 from modules.dqn_agent import DQNAgent
 import numpy as np
 from modules.preprocessors import HistoryPreprocessor
 import argparse
 import os
+from os.path import expanduser
+
+
+def calc_q_values(model, state, num_actions, expand_dims=False):
+    if expand_dims:
+        state = np.expand_dims(state, axis=0)
+
+    action_mask = np.ones([1, num_actions])
+    q_values = model.predict_on_batch([state, action_mask])
+    return q_values.flatten()
 
 def run_random_policy(env, pred_model, args):
     """Run a random policy for the given environment.
@@ -68,9 +78,7 @@ def run_random_policy(env, pred_model, args):
 
             for j in range(args.number_pred):
                 model = pred_model[j]
-
-                q_values = model.calc_q_values(model.network, S[j])
-
+                q_values = calc_q_values(model, S[j], args.num_actions)
                 A[j] = greedy_policy.select_action(q_values)
                 action_string += str(A[j])
                 max_q_val_sum[j] += np.max(q_values)
@@ -100,18 +108,12 @@ def run_random_policy(env, pred_model, args):
 def print_env_info(env):
     print('Environment has %d states and %d actions.' % (env.nS, env.nA))
 
-def calc_q_values(model, state, num_actions):
-    action_mask = np.ones([1, num_actions])
-    q_values = model.predict_on_batch([state, action_mask])
-    return q_values.flatten()
-
-
 def main():
     parser = argparse.ArgumentParser(description='Run DQN on Pacman!')
     parser.add_argument('--algorithm', default='replay_target', help='One of basic, replay_target, double')
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
-    parser.add_argument('--env', default='PacmanEnvSmartPrey-v0', help='Env name')
+    parser.add_argument('-env', default='PacmanEnvSmartPrey-v0', help='Env name')
     parser.add_argument('--num_episodes', default=25, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
@@ -119,35 +121,41 @@ def main():
                         help='Max episode length (for training, not eval).')
     parser.add_argument('--network_name', default='deep',
                         help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
-    parser.add_argument('--weight_path', default='/Users/janani/weights/single_agent', type=str,
+    parser.add_argument('--weight_path', default='~/weights/', type=str,
                         help='To save weight at eval frequency')
+    parser.add_argument('-v', default='def', type=str, help='experiment names, used for loading weights')
+    parser.add_argument('-iter', default=0, type=int, help='the weights to load')
     args = parser.parse_args()
 
     args.coop = not bool(args.compet)
 
     # create the environment
-    env = gym.make('SpaceInvaders-v0')
-    args.num_pred = env.num_agents / 2
+    env = gym.make(args.env)
+    args.number_pred = int(env.num_agents / 2)
     args.size = env.grid_size
 
-    # uncomment next line to try the deterministic version
-    # env = gym.make('Deterministic-4x4-FrozenLake-v0')
+    if 'Pacman' in args.env:
+        args.num_actions = 4
+    elif 'Warehouse' in args.env:
+        args.num_actions = 6
+    else:
+        args.num_actions = env.action_space.n
 
-#    print_env_info(env)
     pred_model = {}
+    args.weight_path = expanduser(args.weight_path)
     mypath = args.weight_path + "/" + args.v
     if not os.path.isdir(mypath):
         os.makedirs(mypath)
     for i in range(args.number_pred):
-        json_file = open('/Users/janani/deep_double.json', 'r')
+        json_file = open(args.weight_path + args.v +"/model" + str(i) + ".json", 'r')
         loaded_model_json = json_file.read()
         json_file.close()
         loaded_model = model_from_json(loaded_model_json)
         # load weights into new model
-        loaded_model.load_weights("/Users/janani/1400000-deep-double-252.5.hd5")
+        loaded_model.load_weights(args.weight_path + args.v + "/" + str(args.iter) + "_" + str(i) + ".hd5")
         pred_model[i] = loaded_model
     print("Loaded model from disk")
-    for i in range(100):
+    for i in range(10):
         total_reward, num_steps = run_random_policy(env, pred_model, args)
         print (total_reward)
     print('Agent received total reward of: %f' % total_reward)
