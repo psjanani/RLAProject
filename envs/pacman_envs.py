@@ -354,3 +354,8 @@ register(
 	id='PacmanEnvSmartBoth-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
 	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': True})
+
+register(
+	id='PacmanEnv2-v1',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
