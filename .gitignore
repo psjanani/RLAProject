@@ -7,3 +7,4 @@ weights/*.json
 *pyc
 modules/*pyc
 envs/*pyc
+.idea/
