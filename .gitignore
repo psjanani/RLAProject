@@ -4,3 +4,6 @@ weights/*.hd5
 weights
 weights/*.json
 *jpg
+*pyc
+modules/*pyc
+envs/*pyc
