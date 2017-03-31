@@ -67,6 +67,7 @@ class PacmanEnv(Env):
 		self.smart_prey = smart_prey
 		self.smart_predator = smart_predator
 		self.num_prey = self.num_predators = int(self.num_agents/2)
+		self.smart_auto_moves = False
 
 		self.grid_size = grid_size
 
@@ -262,22 +263,26 @@ class PacmanEnv(Env):
 		curr_predator_pos = self.find_predator_indices()
 		curr_prey_pos = self.find_prey_indices()
 
-		i = 0
-		for action in action_str:
-			action = action_str[i]
-			try:
-				action = int(action)
-			except ValueError:
-				if self.smart_predator:
-					action = smart_move(self.barrier_mask,\
-						curr_predator_pos[i], curr_prey_pos, 'closer')[0]
-				else:
-					action = np.random.randint(4)
-			actions[i] = action
-			i += 1
+		if self.smart_auto_moves:
+			actions[:self.num_predators] = smart_move(self.barrier_mask,\
+				curr_predator_pos, curr_prey_pos, 'closer')
+		else:
+			i = 0
+			for action in action_str:
+				action = action_str[i]
+				try:
+					action = int(action)
+				except ValueError:
+					if self.smart_predator:
+						action = smart_move(self.barrier_mask,\
+							curr_predator_pos[i], curr_prey_pos, 'closer')[0]
+					else:
+						action = np.random.randint(4)
+				actions[i] = action
+				i += 1
 
 		if self.smart_prey:
-			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, 'closer')
+			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, 'further')
 			if np.shape(smart_actions)[0] == 0:
 				for i in range(self.num_predators, self.num_agents):
 					actions[i] = np.random.randint(4)
@@ -335,15 +340,11 @@ class PacmanEnv(Env):
 
 basic_barriers = [ (2, 2, 6, 6) ]
 advanced_barrier = [ (2, 1, 8, 4), (0, 6, 8, 3) ]
+
 register(
 	id='PacmanEnv-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':10, 'num_agents':2, 'smart_prey': True, 'smart_predator': False})
-
-register(
-	id='PacmanEnvSmartPrey-v0',
-	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': False})
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
 
 register(
 	id='PacmanEnvSmartPredators-v0',

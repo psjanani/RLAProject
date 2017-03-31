@@ -49,6 +49,7 @@ class DQNAgent:
 		self.target_update_freq = args.target_update_freq
 		self.num_burn_in = int(args.num_burn_in)
 		self.batch_size = args.batch_size
+		self.smart_burn_in = bool(args.smart_burn_in)
 		self.algorithm = args.algorithm
 		self.update_freq = int(args.update_freq)
 		self.coin_flip = self.algorithm == 'double' and self.network_name == 'linear'
@@ -81,11 +82,12 @@ class DQNAgent:
 	def create_buffer(self, env):
 		self.reset(env)
 
+		env.smart_auto_moves = self.smart_burn_in
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
 			action_str = ['*'] * self.num_pred
 			S = self.preprocessor.get_state(self.id)
-			A = np.random.randint(self.num_actions)
+			A = '' if self.smart_burn_in else np.random.randint(self.num_actions)
 			action_str[self.id] = str(A)
 			s_prime, R, is_terminal, debug_info = env.step("".join(action_str))
 			self.preprocessor.add_state(s_prime)
@@ -95,6 +97,8 @@ class DQNAgent:
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
 			if is_terminal:
 				self.reset(env)
+
+		env.smart_auto_moves = False # reset smart predator
 
 	# resets both environment and preprocessor			
 	def reset(self, env):
