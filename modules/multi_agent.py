@@ -95,10 +95,11 @@ class IndependentDQN(MultiAgent):
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
-                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 250, num_iters % 50000 == 0)
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 250,
+                                                                                              num_iters % (5 * self.eval_freq) == 0)
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
-                    if self.args.save_weights:
+                    if self.args.save_weights and num_iters % (5 * self.eval_freq) == 0:
                         for i in range(self.number_pred):
                             model = self.pred_model[i].network
                             model.save(self.args.weight_path + self.args.v + "/" + str(num_iters) + "_" + str(i) + ".hd5")
