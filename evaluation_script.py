@@ -113,7 +113,7 @@ def main():
     parser.add_argument('--algorithm', default='replay_target', help='One of basic, replay_target, double')
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
-    parser.add_argument('-env', default='PacmanEnvSmartPrey-v0', help='Env name')
+    parser.add_argument('--env', default='PacmanEnvSmartPrey-v0', help='Env name')
     parser.add_argument('--num_episodes', default=25, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
@@ -123,8 +123,8 @@ def main():
                         help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--weight_path', default='~/weights/', type=str,
                         help='To save weight at eval frequency')
-    parser.add_argument('-v', default='def', type=str, help='experiment names, used for loading weights')
-    parser.add_argument('-iter', default=0, type=int, help='the weights to load')
+    parser.add_argument('--v', default='def', type=str, help='experiment names, used for loading weights')
+    parser.add_argument('--iter', default=0, type=int, help='the weights to load')
     args = parser.parse_args()
 
     args.coop = not bool(args.compet)

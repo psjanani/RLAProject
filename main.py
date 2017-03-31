@@ -53,7 +53,7 @@ def main():
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
     parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
     parser.add_argument('--weight_path', default='~/weights/', type=str, help='To save weight at eval frequency')
-    parser.add_argument('-v', default= 'def', type =str, help='experiment names, used for storing weights')
+    parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
     args = parser.parse_args()
     
     args.coop = not bool(args.compet)
