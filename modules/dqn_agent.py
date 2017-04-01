@@ -70,12 +70,12 @@ class DQNAgent:
 		else:
 			raise Exception("This should not happen.  Check boolean instance variables.")
 
-	def calc_q_values(self, state):
+	def calc_q_values(self, model, state):
 		if len(state.shape) < 2:
 			state = np.expand_dims(state, axis=0)
 
 		action_mask = np.ones([1, self.num_actions])
-		q_values = self.network.predict_on_batch([state, action_mask])
+		q_values = model.predict_on_batch([state, action_mask])
 
 		return q_values.flatten()
 
@@ -85,10 +85,11 @@ class DQNAgent:
 		if self.smart_burn_in:
 			env.quick_burn_in()
 
+		S = self.preprocessor.get_state(self.id)
+
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
 			action_str = [0] * self.num_pred
-			S = self.preprocessor.get_state(self.id)
 			A = np.random.randint(self.num_actions)
 
 			other_action = int(A % 4)
@@ -110,6 +111,9 @@ class DQNAgent:
 			R = self.preprocessor.process_reward(R)
 
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
+
+			S = S_prime
+
 			if is_terminal:
 				self.reset(env)
 

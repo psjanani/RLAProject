@@ -82,10 +82,10 @@ class DeepQModel(Models):
         state_input = Input(shape=img_dims, name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        conv = Convolution2D(16, 4, 4, activation='tanh',
+        conv = Convolution2D(16, 4, 4, activation='relu',
                                    border_mode='same', subsample=(2, 2))(state_input)
 
-        conv2 = Convolution2D(32, 2, 2, activation='tanh',
+        conv2 = Convolution2D(32, 2, 2, activation='relu',
             border_mode='same', subsample=(1, 1))(conv)
 
         flatten = Flatten()(conv2)
