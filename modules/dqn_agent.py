@@ -70,12 +70,12 @@ class DQNAgent:
 		else:
 			raise Exception("This should not happen.  Check boolean instance variables.")
 
-	def calc_q_values(self, model, state, expand_dims=False):
-		if expand_dims:
+	def calc_q_values(self, state):
+		if len(state.shape) < 2:
 			state = np.expand_dims(state, axis=0)
 
 		action_mask = np.ones([1, self.num_actions])
-		q_values = model.predict_on_batch([state, action_mask])
+		q_values = self.network.predict_on_batch([state, action_mask])
 
 		return q_values.flatten()
 
@@ -83,18 +83,23 @@ class DQNAgent:
 		self.reset(env)
 
 		env.smart_auto_moves = self.smart_burn_in
+
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
-			action_str = ['*'] * self.num_pred
+			action_str = [0] * self.num_pred
 			S = self.preprocessor.get_state(self.id)
 			A = np.random.randint(self.num_actions)
-			action_str[self.id] = str(A)
+
+			other_action = int(A % 4)
+			my_action = int(A // 4)
+
+			action_str[0] = str(my_action)
+			action_str[1] = str(other_action)
 			s_prime, R, is_terminal, debug_info = env.step("".join(action_str))
 			self.preprocessor.add_state(s_prime)
 			# get new processed state frames
 			S_prime = self.preprocessor.get_state(self.id)
 			R = self.preprocessor.process_reward(R)
-			A = env.latest_first_pred_action
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
 			if is_terminal:
 				self.reset(env)
@@ -146,7 +151,7 @@ class DQNAgent:
 
 	def select_action(self, S, expand_dims=False):
 		# returns q_values and chosen action (network chooses action and evaluates)
-		q_values = self.calc_q_values(self.network, S, expand_dims)
+		q_values = self.calc_q_values(self.network, S)
 		q_selectors = q_values
 
 		if self.coin_flip:
@@ -158,7 +163,7 @@ class DQNAgent:
 	def update_model(self, num_iters):
 		minibatch, q_value_index, true_output_masked = self.get_minibatch()
 		loss = self.network.train_on_batch([minibatch, q_value_index], true_output_masked)
-		# render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
+		render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
 
 	def switch_roles(self):
 		should_switch = np.random.rand() < 0.5

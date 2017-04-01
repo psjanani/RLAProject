@@ -78,7 +78,7 @@ class HistoryPreprocessor(Preprocessor):
             full_frames[predator_id - 1, :, :] = my_frame
 
         if self.model_name == 'linear':
-            return full_frame.reshape(self.num_pred, self.frame_size[0] * self.frame_size[1])
+            return full_frames.reshape(self.num_pred, self.frame_size[0] * self.frame_size[1])
 
         if not id is None:
             return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)
