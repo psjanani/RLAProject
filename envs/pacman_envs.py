@@ -294,8 +294,8 @@ class PacmanEnv(Env):
 				actions[i] = action
 				i += 1
 
-				if i <= self.num_predators:
-					raise Exception("You must either supply all actions for predator or none (smart predator).")
+			if i + 1 <= self.num_predators:
+				raise Exception("You must either supply all actions for predator or none (smart predator).")
 
 
 		if self.prey_style == 'smart' or self.prey_style == 'dumb':
