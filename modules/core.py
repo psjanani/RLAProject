@@ -13,14 +13,18 @@ class RingBuffer:
         """ class that implements a full buffer """
         def append(self, x):
             """ Append an element overwriting the oldest one. """
-            self.data[self.cur] = x
-            self.cur = (self.cur+1) % self.max
+            self.data[int(self.cur)] = x
+            self.cur = (int(self.cur) + 1) % self.max
         def get(self):
             """ return list of elements in correct order """
-            return self.data[self.cur:]+self.data[:self.cur]
+            return self.data[int(self.cur):]+self.data[:int(self.cur)]
 
         def get_size(self):
             return len(self.data)
+
+        def get_ind(self, ind):
+            """ Return a list of elements from the oldest to the newest. """
+            return self.data[ind]
 
     def append(self,x):
         """append an element at the end of the buffer"""

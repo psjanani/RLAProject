@@ -28,10 +28,13 @@ class IndependentDQN(MultiAgent):
         self.coop = args.coop
         self.gamma = args.gamma
         self.debug_mode = args.debug_mode
+        self.max_test_episode_length = args.max_test_episode_length
         self.agent_dissemination_freq = args.agent_dissemination_freq
         self.algorithm = args.algorithm
         self.optimizer = optimizer
         self.eval_freq = args.eval_freq
+        self.eval_num = args.eval_num
+
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
@@ -95,7 +98,7 @@ class IndependentDQN(MultiAgent):
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
-                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 250, num_iters % 50000 == 0)
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, num_iters % 50000 == 0)
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
                     if self.args.save_weights:
@@ -112,7 +115,7 @@ class IndependentDQN(MultiAgent):
                         model.buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
                         if model.target_fixing and num_iters % model.target_update_freq == 0:
                             get_hard_target_model_updates(model.target, model.network)
-                        if num_iters % model.update_freq == 0:
+                        if num_iters % model.update_freq == 0 or is_terminal:
                             model.update_model(num_iters)
                             if model.coin_flip:
                                 model.switch_roles()
@@ -126,7 +129,7 @@ class IndependentDQN(MultiAgent):
         model.save('end_model.h5')
 
         # record last 100_rewards
-        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(1, 25, num_iters % 50000 == 0)
+        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, True)
         print(str(num_iters) + '(final):\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
             + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
 
