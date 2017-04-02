@@ -85,10 +85,10 @@ class DQNAgent:
 		if self.smart_burn_in:
 			env.quick_burn_in()
 
+		S = self.preprocessor.get_state(self.id) 
+
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
-			S = self.preprocessor.get_state(self.id)
-
 			if self.smart_burn_in:
 				action_str = ''
 			else:
@@ -109,6 +109,9 @@ class DQNAgent:
 			R = self.preprocessor.process_reward(R)
 
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
+
+			S = S_prime
+
 			if is_terminal:
 				self.reset(env)
 
