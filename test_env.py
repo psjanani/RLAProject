@@ -4,6 +4,7 @@ import argparse
 import os
 import random
 import gym
+import time
 
 from modules.dqn_agent import DQNAgent
 from modules.objectives import mean_huber_loss, huber_loss
@@ -13,6 +14,11 @@ from modules.multi_agent import *
 import envs.pacman_envs
 from os.path import expanduser
 
+def make_assertions(args):
+    algo = args.algorithm
+    network_name = args.network_name
+    assert network_name == 'stanford' or network_name == 'linear' or network_name == 'deep' or 'dueling' in network_name
+    assert algo == 'basic' or algo == 'replay_target' or algo == 'double'
 
 def main():
     parser = argparse.ArgumentParser(description='Run DQN on Pacman!')
@@ -69,8 +75,19 @@ def main():
 
     # make environment
     env = gym.make(args.env)
-    args.num_agents = env.num_agents
-    args.num_pred = env.num_predators
+    #args.num_agents = env.num_agents
+    #args.num_pred = env.num_predators
+
+    s = env.reset()
+    for _ in range(20):
+        env.render()
+        # your agent here (this takes random actions)
+        action = env.action_space.sample()
+        observation, reward, done, info = env.step(action)
+        time.sleep(1)
+        if done:
+            env.render()
+            break
 
     if args.v == 'def':
         print "You might want to name your experiment for later reference."

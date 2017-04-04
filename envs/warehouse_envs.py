@@ -24,10 +24,9 @@ class WarehouseEnv(Env):
     P: environment model
     """
     metadata = {'render.modes': ['human']}
-    
-    BOX_DELIVERY_PT = 0
 
-    GRID_SIZE = 4
+    GRID_SIZE = 8
+    BOX_DELIVERY_PT =GRID_SIZE*GRID_SIZE-1
 
     DELIVERY_REWARD = 1
 
@@ -89,6 +88,7 @@ class WarehouseEnv(Env):
 
         # find random position for box not already occupied
         starting_box_pos = self.observation_space.sample()
+
         while starting_box_pos == 0 or starting_box_pos == starting_agent_pos:
             starting_box_pos = self.observation_space.sample()
 
@@ -271,3 +271,4 @@ class WarehouseEnv(Env):
 register(
     id='Warehouse-v0',
     entry_point='envs.warehouse_envs:WarehouseEnv')
+    #kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': True})
