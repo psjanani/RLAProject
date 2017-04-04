@@ -43,6 +43,12 @@ class IndependentDQN(MultiAgent):
         if (model_name == 'deep' or 'dueling' in model_name):
             self.m = DeepQModel((args.dim, args.dim), args.num_actions, model_name)
 
+        if (model_name == 'deep2'):
+            self.m = DeepModel2((args.dim, args.dim), args.num_actions, model_name)
+
+        if (model_name == 'deep1'):
+            self.m = VSDeepModel((args.dim, args.dim), args.num_actions, model_name)
+
     def create_model(self, env, args):
         self.model_init(args)
         self.args = args
@@ -58,7 +64,7 @@ class IndependentDQN(MultiAgent):
                 model = self.m.create_model()
                 model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
                 if (args.num_burn_in != 0):
-                    buffer = NaiveReplay(args.memory, True, None)
+                    buffer = Prioritized_Replay(args.memory, 10000, args.batch_size)
             self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
 
         return model
@@ -95,7 +101,7 @@ class IndependentDQN(MultiAgent):
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
-                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 250,
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 1000,
                                                                                               num_iters % (5 * self.eval_freq) == 0)
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))

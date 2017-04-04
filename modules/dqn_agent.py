@@ -1,6 +1,6 @@
 from keras.optimizers import Adam
 import numpy as np
-from replay import NaiveReplay
+from replay import NaiveReplay, Prioritized_Replay
 from keras.models import Model
 from utils import get_hard_target_model_updates, render
 from modules.preprocessors import HistoryPreprocessor
@@ -81,12 +81,11 @@ class DQNAgent:
 
 	def create_buffer(self, env):
 		self.reset(env)
-
 		env.smart_auto_moves = self.smart_burn_in
+		S = self.preprocessor.get_state(self.id)
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
 			action_str = ['*'] * self.num_pred
-			S = self.preprocessor.get_state(self.id)
 			A = np.random.randint(self.num_actions)
 			action_str[self.id] = str(A)
 			s_prime, R, is_terminal, debug_info = env.step("".join(action_str))
@@ -96,6 +95,7 @@ class DQNAgent:
 			R = self.preprocessor.process_reward(R)
 			A = env.latest_first_pred_action
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
+			S = S_prime
 			if is_terminal:
 				self.reset(env)
 
@@ -104,16 +104,18 @@ class DQNAgent:
 	# resets both environment and preprocessor			
 	def reset(self, env):
 		self.preprocessor.reset()
-		self.preprocessor.add_state(env.reset())
+		init_state = env.reset()
+		self.preprocessor.add_state(init_state)
 
 	def get_minibatch(self):
 		# get new processed state frames
-		sample = self.buffer.sample(self.batch_size)
+		sample, w, id1 = self.buffer.sample(self.batch_size)
 
 		# compute TD target
 		true_output_masked = np.zeros([self.batch_size, self.num_actions])
 		q_value_index = np.zeros([self.batch_size, self.num_actions])
 		state = None
+		delta = []
 		for i in range(self.batch_size):
 			true_output = sample[i].reward
 
@@ -130,7 +132,7 @@ class DQNAgent:
 					A_prime = np.argmax(q_values)
 
 				true_output += self.gamma * q_values[A_prime]
-			
+			delta.append(true_output - self.calc_q_values(self.target, sample[i].state)[sample[i].action])
 			# output mask for appropriate action is one-hot vector
 			true_output_masked[i][sample[i].action] = true_output
 
@@ -141,7 +143,7 @@ class DQNAgent:
 				state = S
 			else:
 				state = np.append(state, S, axis=0)
-
+		self.buffer.update_priority(delta, id1)
 		return state, q_value_index, true_output_masked
 
 	def select_action(self, S, expand_dims=False):

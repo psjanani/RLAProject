@@ -86,6 +86,7 @@ def run_random_policy(env, pred_model, args):
             s_prime, R, is_terminal, debug_info = env.step(action_string)
 
             env.render()
+            print()
 
 
             R = preprocessor.process_reward(R)
@@ -114,7 +115,7 @@ def main():
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
     parser.add_argument('--env', default='PacmanEnvSmartPrey-v0', help='Env name')
-    parser.add_argument('--num_episodes', default=25, type=int, help='Number of episodes to evaluate on.')
+    parser.add_argument('--num_episodes', default=1, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
     parser.add_argument('--max_episode_length', default=500, type=int,

@@ -117,3 +117,54 @@ class DeepQModel(Models):
         model = Model(input=[state_input, action_mask], output=masked_output)
 
         return model
+
+class DeepModel2(Models):
+
+    def __init__(self, input_shape, num_actions, model_name="deep"):
+        self.input_shape = input_shape
+        self.num_actions = num_actions
+        self.model_name = model_name
+
+    def create_model(self):
+        # 10 x 10 x channels (1)
+        img_dims = (self.input_shape[0], self.input_shape[1], 1)
+        state_input = Input(shape=img_dims, name='state_input')
+        action_mask = Input(shape=(self.num_actions,), name='action_mask')
+
+        conv2 = Convolution2D(32, 2, 2, activation='relu',
+            border_mode='same', subsample=(1, 1))(state_input)
+
+        flatten = Flatten()(conv2)
+
+        dense_layer1 = Dense(64, activation='sigmoid')(flatten)
+        action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer1)
+        masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+
+        model = Model(input=[state_input, action_mask], output=masked_output)
+
+        return model
+
+class VSDeepModel(Models):
+
+    def __init__(self, input_shape, num_actions, model_name="deep"):
+        self.input_shape = input_shape
+        self.num_actions = num_actions
+        self.model_name = model_name
+
+    def create_model(self):
+        # 10 x 10 x channels (1)
+        img_dims = (self.input_shape[0], self.input_shape[1], 1)
+        state_input = Input(shape=img_dims, name='state_input')
+        action_mask = Input(shape=(self.num_actions,), name='action_mask')
+
+        conv2 = Convolution2D(32, 2, 2, activation='relu',
+            border_mode='same', subsample=(1, 1))(state_input)
+
+        flatten = Flatten()(conv2)
+
+        action_output = Dense(self.num_actions, activation='linear', name='action_output')(flatten)
+        masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+
+        model = Model(input=[state_input, action_mask], output=masked_output)
+
+        return model

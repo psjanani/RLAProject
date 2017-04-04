@@ -305,7 +305,7 @@ class PacmanEnv(Env):
 			new_predator_channel[new_r][new_c] = self.predator_channel[r][c]
 
 		next_positions = curr_prey_pos
-		
+
 		next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
 
 		for i in range(len(next_positions)):

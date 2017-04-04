@@ -64,7 +64,6 @@ class HistoryPreprocessor(Preprocessor):
 
         nz_ids = self.frames[pred_idxs] # [ 2, 1] 2 is 2nd predator...
 
-
         self.frames[pred_idxs] = 1
 
         for i in range(self.num_pred):
@@ -76,9 +75,14 @@ class HistoryPreprocessor(Preprocessor):
 
             my_frame[r, c] = 2
             full_frames[predator_id - 1, :, :] = my_frame
+        full_frames = full_frames + 2
+        full_frames = np.divide(full_frames , 5)
+
+        if np.all(full_frames[1, :, :] == 0) or np.all(full_frames[1, :, :] == 2):
+            raise
 
         if self.model_name == 'linear':
-            return full_frame.reshape(self.num_pred, self.frame_size[0] * self.frame_size[1])
+            return full_frames.reshape(self.num_pred, self.frame_size[0] * self.frame_size[1])
 
         if not id is None:
             return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)
