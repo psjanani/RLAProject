@@ -43,7 +43,7 @@ class Experience(object):
         # each part size
         partition_size = math.floor(self.size / n_partitions)
 
-        for n in range(partition_size, self.size + 1, partition_size):
+        for n in range(int(partition_size), int(self.size + 1), int(partition_size)):
             if self.learn_start <= n <= self.priority_size:
                 distribution = {}
                 # P(i) = (rank i) ^ (-alpha) / sum ((rank i) ^ (-alpha))
@@ -51,22 +51,21 @@ class Experience(object):
                     map(lambda x: math.pow(x, -self.alpha), range(1, n + 1))
                 )
                 pdf_sum = math.fsum(pdf)
-                distribution['pdf'] = list(map(lambda x: x / pdf_sum, pdf))
+                distribution['pdf'] = list(map(lambda x: x / float(pdf_sum), pdf))
                 # split to k segment, and than uniform sample in each k
                 # set k = batch_size, each segment has total probability is 1 / batch_size
                 # strata_ends keep each segment start pos and end pos
                 cdf = np.cumsum(distribution['pdf'])
                 strata_ends = {1: 0, self.batch_size + 1: n}
-                step = 1 / self.batch_size
+                step = 1 / float(self.batch_size)
                 index = 1
                 for s in range(2, self.batch_size + 1):
                     while cdf[index] < step:
                         index += 1
                     strata_ends[s] = index
-                    step += 1 / self.batch_size
+                    step += 1 / float(self.batch_size)
 
                 distribution['strata_ends'] = strata_ends
-
                 res[partition_num] = distribution
 
             partition_num += 1
@@ -107,6 +106,7 @@ class Experience(object):
             # add to priority queue
             priority = self.priority_queue.get_max_priority()
             self.priority_queue.update(priority, insert_index)
+
             return True
         else:
             sys.stderr.write('Insert failed\n')
@@ -136,6 +136,7 @@ class Experience(object):
         """
         for i in range(0, len(indices)):
             self.priority_queue.update(math.fabs(delta[i]), indices[i])
+
 
     def sample(self, global_step):
         """

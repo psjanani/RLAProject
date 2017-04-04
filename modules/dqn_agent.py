@@ -132,7 +132,7 @@ class DQNAgent:
 					A_prime = np.argmax(q_values)
 
 				true_output += self.gamma * q_values[A_prime]
-			delta.append(true_output - self.calc_q_values(self.target, sample[i].state)[sample[i].action])
+			delta.append(np.abs(true_output - self.calc_q_values(self.target, sample[i].state)[sample[i].action]))
 			# output mask for appropriate action is one-hot vector
 			true_output_masked[i][sample[i].action] = true_output
 
@@ -160,7 +160,8 @@ class DQNAgent:
 	def update_model(self, num_iters):
 		minibatch, q_value_index, true_output_masked = self.get_minibatch()
 		loss = self.network.train_on_batch([minibatch, q_value_index], true_output_masked)
-		# render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
+		if num_iters % 10000 == 0:
+			render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
 
 	def switch_roles(self):
 		should_switch = np.random.rand() < 0.5

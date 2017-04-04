@@ -92,30 +92,31 @@ class Prioritized_Replay(ReplayMemory):
         We recommend using a list as a ring buffer. Just track the
         index where the next sample should be inserted in the list.
         """
-        conf = {'size': max_size,
+        conf = {'size': 5000,
                 'learn_start': 10,
-                'partition_num': window_length + 1,
+                'partition_num':33,
                 'total_step': 100,
-                'batch_size': window_length}
+                'batch_size': 32}
         self.buffer = Experience(conf=conf)
-        self.reset_count = reset_count
+        self.reset_count = 10
         self.update = 1
 
 
     def append(self, state, action, reward, next_state, terminal):
-        self.buffer.store((state, action, reward, next_state, terminal))
+        self.buffer.store(Sample(state, action, reward, next_state, terminal))
         self.update += 1
         if(self.update % self.reset_count == 0):
+            self.update = 0
             self.buffer.rebalance()
 
     def end_episode(self, final_state, is_terminal):
         pass
 
     def sample(self, batch_size, indexes=None):
-        self.buffer.sample(self.buffer.priority_queue.size)
+        return self.buffer.sample(self.buffer.priority_queue.size)
 
     def get_random_sample(self, batch_size, indexes=None):
-        self.sample(self, batch_size)
+        return self.sample(self, batch_size)
 
     def update_priority(self, priority_list, id):
         self.buffer.update_priority(id, priority_list)

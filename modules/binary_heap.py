@@ -202,7 +202,7 @@ class BinaryHeap(object):
             self.e2p[e_id] = cnt
             cnt += 1
         # sort the heap
-        for i in range(math.floor(self.size / 2), 1, -1):
+        for i in range(int(math.floor(self.size / 2)), 1, -1):
             self.down_heap(i)
 
     def priority_to_experience(self, priority_ids):
