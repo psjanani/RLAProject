@@ -10,12 +10,12 @@ from modules.policy import LinearDecayGreedyEpsilonPolicy, GreedyPolicy, \
 """Main DQN agent."""
 
 
-def get_id(screen):
+def get_id(screen, dim):
     id = 0
 
-    for i in range(3):
-        for j in range(3):
-            id += (5 ** (i * 3 + j)) * screen[0][i][j][0]
+    for i in range(dim):
+        for j in range(dim):
+            id += (5 ** (i * dim + j)) * screen[0][i][j][0]
     return np.asarray([[id]])
 
 
@@ -56,6 +56,7 @@ class DQNAgent:
         self.network_name = args.network_name
         self.num_pred = args.num_agents / 2
         self.memory = args.memory
+        self.dim = args.dim
         self.num_actions = int(args.num_actions)
         self.target_update_freq = args.target_update_freq
         self.num_burn_in = int(args.num_burn_in)
@@ -86,11 +87,10 @@ class DQNAgent:
             state = np.expand_dims(state, axis=0)
 
         if self.network_name == 'embedding':
-            id = get_id(state)
+            id = get_id(state, self.dim)
             action_mask = np.ones([1, self.num_actions])
             q_values = model.predict_on_batch([id, action_mask])
         else:
-
             action_mask = np.ones([1, self.num_actions])
             q_values = model.predict_on_batch([state, action_mask])
 
@@ -109,6 +109,7 @@ class DQNAgent:
             self.preprocessor.add_state(s_prime)
             # get new processed state frames
             S_prime = self.preprocessor.get_state(self.id)
+
             R = self.preprocessor.process_reward(R)
             A = env.latest_first_pred_action
             self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
@@ -157,15 +158,14 @@ class DQNAgent:
             # must null out all other actions
             q_value_index[i][sample[i].action] = 1
             if state is None:
-                state = get_id(S)
+                state = get_id(S, self.dim)
             else:
-                state = np.append(state, get_id(S), axis=0)
+                state = np.append(state, get_id(S, self.dim), axis=0)
         self.buffer.update_priority(delta, id1)
         return state, q_value_index, true_output_masked
 
     def select_action(self, S, expand_dims=False):
         # returns q_values and chosen action (network chooses action and evaluates)
-
         q_values = self.calc_q_values(self.network, S, expand_dims)
         q_selectors = q_values
 

@@ -20,6 +20,7 @@ class EmbedderModel(Models):
         main_input = Input(shape=(1,), dtype='int32', name='main_input')
 
         state_input = Embedding(output_dim=self.num_actions, name='state_input', trainable=True,
+                                weights=[np.zeros([1953125, self.num_actions])],
                                 input_dim=1953125, input_length=1)(main_input)
         state_input = Flatten()(state_input)
         action_mask = Input(shape=(self.num_actions, ), name='action_mask')
@@ -27,8 +28,6 @@ class EmbedderModel(Models):
         masked_output = merge([action_mask, state_input], mode='mul', name='merged_output')
         model = Model(input=[main_input, action_mask], output=masked_output)
         return model
-
-
 
 class LinearModel(Models):
 
@@ -48,7 +47,6 @@ class LinearModel(Models):
         masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
         model = Model(input=[state_input, action_mask], output=masked_output)
         return model
-
 
 class StanfordModel(Models):
 

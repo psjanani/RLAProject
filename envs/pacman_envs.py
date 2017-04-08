@@ -366,4 +366,4 @@ register(
 register(
 	id='PacmanSmallEnv-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': no_barrier, 'grid_size':3, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
+	kwargs={'barriers': no_barrier, 'grid_size':2, 'num_agents':2, 'smart_prey': False, 'smart_predator': False})

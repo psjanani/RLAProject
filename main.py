@@ -28,14 +28,14 @@ def main():
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
     parser.add_argument('--end_epsilon', default=0.05, type=float, help='Steady state epsilon')
     parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
-    parser.add_argument('--eval_freq', default=5e4, type=int, help='Number frames in between evaluations')
+    parser.add_argument('--eval_freq', default=5e3, type=int, help='Number frames in between evaluations')
     parser.add_argument('--eval_num', default=100, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
     parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
     parser.add_argument('--initial_epsilon', default=1.0, type=float, help='Initial epsilon pre-decay')
     parser.add_argument('--loss', default='mean_huber', help='mean_huber, huber, mae, or mse.')
-    parser.add_argument('--lr', default=0.00001, type=float, help='(initial) learning rate')
+    parser.add_argument('--lr', default=0.0000001, type=float, help='(initial) learning rate')
     parser.add_argument('--max_episode_length', default=1000, type=int, help='Max episode length (for training, not eval).')
     parser.add_argument('--memory', default=1e6, type=int, help='size of buffer for experience replay')
     parser.add_argument('--momentum', default=0.95, type=float)
@@ -68,7 +68,7 @@ def main():
     args.num_agents = env.num_agents
 
     if args.v == 'def':
-        print "You might want to name your experiment for later reference"
+        print "You might want to name your experiment for later reference...loser"
 
     args.dim = env.grid_size
 

@@ -48,7 +48,8 @@ class HistoryPreprocessor(Preprocessor):
         for num in reward:
             if self.coop:
                 rewards[int(num) - 1] += reward_val
-                rewards[int(num) % 2] += reward_val / 2
+                if self.num_pred == 2:
+                    rewards[int(num) % 2] += reward_val / 2
             else: # just the killer gets rewarded (perverse if you ask me)
                 rewards[int(num) - 1] += reward_val
         return rewards
