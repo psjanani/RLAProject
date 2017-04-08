@@ -37,22 +37,20 @@ class HistoryPreprocessor(Preprocessor):
         prey_channel[prey_idxs] = -2
 
         state = np.add(np.add(state[0, :, :], state[1, :, :]), state[2, :, :])
-
         self.frames = state
 
         return self.frames
 
     def process_reward(self, reward):
         rewards = [0] * self.num_pred
-
-        reward_val = 10
+        reward_val = 1
 
         for num in reward:
             if self.coop:
-                rewards = map(lambda r: r + reward_val, rewards)
+                rewards[int(num) - 1] += reward_val
+                rewards[int(num) % 2] += reward_val / 2
             else: # just the killer gets rewarded (perverse if you ask me)
                 rewards[int(num) - 1] += reward_val
-
         return rewards
 
     def get_state(self, id=None):
@@ -76,6 +74,11 @@ class HistoryPreprocessor(Preprocessor):
             my_frame[r, c] = 2
             full_frames[predator_id - 1, :, :] = my_frame
         full_frames = full_frames + 2
+        if (self.model_name == 'embedding'):
+            if not id is None:
+                return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)
+            return np.expand_dims(np.expand_dims(full_frames, axis=-1), axis=1)
+
         full_frames = np.divide(full_frames , 5)
 
         if np.all(full_frames[1, :, :] == 0) or np.all(full_frames[1, :, :] == 2):

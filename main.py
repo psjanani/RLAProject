@@ -35,7 +35,7 @@ def main():
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
     parser.add_argument('--initial_epsilon', default=1.0, type=float, help='Initial epsilon pre-decay')
     parser.add_argument('--loss', default='mean_huber', help='mean_huber, huber, mae, or mse.')
-    parser.add_argument('--lr', default=0.00025, type=float, help='(initial) learning rate')
+    parser.add_argument('--lr', default=0.00001, type=float, help='(initial) learning rate')
     parser.add_argument('--max_episode_length', default=1000, type=int, help='Max episode length (for training, not eval).')
     parser.add_argument('--memory', default=1e6, type=int, help='size of buffer for experience replay')
     parser.add_argument('--momentum', default=0.95, type=float)

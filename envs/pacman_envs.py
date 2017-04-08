@@ -342,7 +342,7 @@ class PacmanEnv(Env):
 
 basic_barriers = [ (2, 2, 6, 6) ]
 advanced_barrier = [ (2, 1, 8, 4), (0, 6, 8, 3) ]
-
+no_barrier = []
 register(
 	id='PacmanEnv-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
@@ -362,3 +362,8 @@ register(
 	id='PacmanEnv2-v1',
 	entry_point='envs.pacman_envs:PacmanEnv',
 	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
+
+register(
+	id='PacmanSmallEnv-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': no_barrier, 'grid_size':3, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})

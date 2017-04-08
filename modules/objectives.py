@@ -33,9 +33,11 @@ def huber_loss(y_true, y_pred, max_grad=1.):
 
     # calculate error deltas
     delta_abs = K.abs(y_true - y_pred)
-
+    sq = 0.5 * K.square(delta_abs)
+    li = max_grad * (delta_abs - 0.5 * max_grad)
     # determine regions by gamma threshold
-    result = K.switch(delta_abs[0] < max_grad, lambda: 0.5*K.square(delta_abs), lambda: max_grad * (delta_abs - 0.5 * max_grad))
+    #result = K.switch(delta_abs[0] < max_grad, lambda: 0.5 * K.square(delta_abs), lambda: max_grad * (delta_abs - 0.5 * max_grad))
+    result = tf.where(delta_abs[0] < max_grad, sq, li)
 
     return result
 

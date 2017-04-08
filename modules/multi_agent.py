@@ -49,6 +49,10 @@ class IndependentDQN(MultiAgent):
         if (model_name == 'deep1'):
             self.m = VSDeepModel((args.dim, args.dim), args.num_actions, model_name)
 
+        if (model_name == 'embedding'):
+            self.m = EmbedderModel((args.dim, args.dim), args.num_actions, model_name)
+
+
     def create_model(self, env, args):
         self.model_init(args)
         self.args = args

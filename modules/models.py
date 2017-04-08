@@ -1,13 +1,34 @@
-from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda
+from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda, Embedding
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.core import RepeatVector
 from keras.models import Model
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
+import numpy as np
 
 class Models:
     def create_model(self):
         pass
+
+class EmbedderModel(Models):
+    def __init__(self, input_shape, num_actions, model_name="embed"):
+        self.input_shape = input_shape
+        self.num_actions = num_actions
+        self.model_name = model_name
+
+    def create_model(self):
+        main_input = Input(shape=(1,), dtype='int32', name='main_input')
+
+        state_input = Embedding(output_dim=self.num_actions, name='state_input', trainable=True,
+                                input_dim=1953125, input_length=1)(main_input)
+        state_input = Flatten()(state_input)
+        action_mask = Input(shape=(self.num_actions, ), name='action_mask')
+
+        masked_output = merge([action_mask, state_input], mode='mul', name='merged_output')
+        model = Model(input=[main_input, action_mask], output=masked_output)
+        return model
+
+
 
 class LinearModel(Models):
 
