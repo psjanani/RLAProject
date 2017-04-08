@@ -28,10 +28,13 @@ class IndependentDQN(MultiAgent):
         self.coop = args.coop
         self.gamma = args.gamma
         self.debug_mode = args.debug_mode
+        self.max_test_episode_length = args.max_test_episode_length
         self.agent_dissemination_freq = args.agent_dissemination_freq
         self.algorithm = args.algorithm
         self.optimizer = optimizer
         self.eval_freq = args.eval_freq
+        self.eval_num = args.eval_num
+
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
@@ -95,8 +98,9 @@ class IndependentDQN(MultiAgent):
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
-                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(50, 250,
-                                                                                              num_iters % (5 * self.eval_freq) == 0)
+
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, num_iters % (self.eval_freq * 5) == 0)# num_iters % 50000 == 0)
+
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
                     if self.args.save_weights and num_iters % (5 * self.eval_freq) == 0:
@@ -107,13 +111,15 @@ class IndependentDQN(MultiAgent):
                 for i in range(self.number_pred):
                     model = self.pred_model[i]
                     if i > 0 and self.args.solo_train:
+                        self.pred_model[0].buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
+
                         if num_iters % self.agent_dissemination_freq == 0:
                             get_hard_target_model_updates(self.pred_model[0].network, model.network)
                     else:
                         model.buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
                         if model.target_fixing and num_iters % model.target_update_freq == 0:
                             get_hard_target_model_updates(model.target, model.network)
-                        if num_iters % model.update_freq == 0:
+                        if num_iters % model.update_freq == 0 or is_terminal:
                             model.update_model(num_iters)
                             if model.coin_flip:
                                 model.switch_roles()
@@ -127,7 +133,7 @@ class IndependentDQN(MultiAgent):
         model.save('end_model.h5')
 
         # record last 100_rewards
-        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(1, 25, num_iters % 50000 == 0)
+        avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, True)
         print(str(num_iters) + '(final):\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
             + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
 
@@ -190,9 +196,9 @@ class IndependentDQN(MultiAgent):
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
 
-                # if to_render and i == 0:
-                #     self.env.render()
-                #     print('\n')
+                if to_render and i == 0:
+                    self.env.render()
+                    print('\n')
 
                 if self.debug_mode:
                     save_states_as_images(S)

@@ -45,7 +45,7 @@ class HistoryPreprocessor(Preprocessor):
     def process_reward(self, reward):
         rewards = [0] * self.num_pred
 
-        reward_val = 10
+        reward_val = 1
 
         for num in reward:
             if self.coop:
@@ -64,11 +64,10 @@ class HistoryPreprocessor(Preprocessor):
 
         nz_ids = self.frames[pred_idxs] # [ 2, 1] 2 is 2nd predator...
 
-
-        self.frames[pred_idxs] = 1
-
         for i in range(self.num_pred):
             my_frame = np.copy(self.frames)
+            my_frame[pred_idxs] = 1
+
             predator_id = int(nz_ids[i])
 
             r = pred_idxs[0][i]
@@ -77,8 +76,12 @@ class HistoryPreprocessor(Preprocessor):
             my_frame[r, c] = 2
             full_frames[predator_id - 1, :, :] = my_frame
 
+        full_frames += 2
+        
+        full_frames = np.divide(full_frames, 4)
+
         if self.model_name == 'linear':
-            return full_frame.reshape(self.num_pred, self.frame_size[0] * self.frame_size[1])
+            return full_frames.reshape(self.num_pred, self.frame_size[0] * self.frame_size[1])
 
         if not id is None:
             return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)

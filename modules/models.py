@@ -82,8 +82,8 @@ class DeepQModel(Models):
         state_input = Input(shape=img_dims, name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        conv = Convolution2D(16, 4, 4, activation='relu',
-                                   border_mode='same', subsample=(2, 2))(state_input)
+        conv = Convolution2D(16, 3, 3, activation='relu',
+                                   border_mode='same', subsample=(1, 1))(state_input)
 
         conv2 = Convolution2D(32, 2, 2, activation='relu',
             border_mode='same', subsample=(1, 1))(conv)
@@ -115,5 +115,7 @@ class DeepQModel(Models):
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 
         model = Model(input=[state_input, action_mask], output=masked_output)
+
+        model.summary()
 
         return model

@@ -57,15 +57,19 @@ class PacmanEnv(Env):
 
 		return num_barrier_cells
 
-	def __init__(self, barriers, grid_size, num_agents, smart_prey, smart_predator):
+	def __init__(self, barriers, grid_size, num_agents, prey_style, smart_predator):
 		# this is total number of agents (must be even number)
 		# half of these agents will be prey and half predators
 		if num_agents % 2 != 0:
 			raise "Argument Error.  Must have even number of agents"
 
 		self.num_agents = num_agents
-		self.smart_prey = smart_prey
+
+		self.prey_style = prey_style
+		self.orig_prey_style = prey_style
 		self.smart_predator = smart_predator
+		self.orig_smart_predator = smart_predator
+
 		self.num_prey = self.num_predators = int(self.num_agents/2)
 		self.smart_auto_moves = False
 
@@ -83,6 +87,7 @@ class PacmanEnv(Env):
 			self.nS += self.nS * (free_cells - i)
 
 		self.nA = 4**self.num_agents
+		self.dumb_prey = False
 
 		self.action_space = spaces.MultiDiscrete(
 			[(0,4)]*self.num_agents
@@ -103,6 +108,14 @@ class PacmanEnv(Env):
 		
 		self._seed()
 		self._reset()
+
+	def quick_burn_in(self):
+		self.smart_predator = True
+		self.prey_style = 'dumb'
+
+	def revert(self):
+		self.smart_predator = self.orig_smart_predator
+		self.prey_style = self.orig_prey_style
 
 	def sub2Linear((r, c)):
 		return r*self.grid_size + c
@@ -263,7 +276,7 @@ class PacmanEnv(Env):
 		curr_predator_pos = self.find_predator_indices()
 		curr_prey_pos = self.find_prey_indices()
 
-		if self.smart_auto_moves:
+		if len(action_str) == 0:
 			actions[:self.num_predators] = smart_move(self.barrier_mask,\
 				curr_predator_pos, curr_prey_pos, 'closer')
 		else:
@@ -275,14 +288,19 @@ class PacmanEnv(Env):
 				except ValueError:
 					if self.smart_predator:
 						action = smart_move(self.barrier_mask,\
-							curr_predator_pos[i], curr_prey_pos, 'closer')[0]
+							[curr_predator_pos[i]], curr_prey_pos, 'closer')[0]
 					else:
 						action = np.random.randint(4)
 				actions[i] = action
 				i += 1
 
-		if self.smart_prey:
-			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, 'further')
+			if i + 1 <= self.num_predators:
+				raise Exception("You must either supply all actions for predator or none (smart predator).")
+
+
+		if self.prey_style == 'smart' or self.prey_style == 'dumb':
+			direction = 'further' if self.prey_style == 'smart' else 'closer'
+			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, direction)
 			if np.shape(smart_actions)[0] == 0:
 				for i in range(self.num_predators, self.num_agents):
 					actions[i] = np.random.randint(4)
@@ -341,24 +359,26 @@ class PacmanEnv(Env):
 
 
 basic_barriers = [ (2, 2, 6, 6) ]
-advanced_barrier = [ (2, 1, 8, 4), (0, 6, 8, 3) ]
+advanced_barrier = [ (2, 1, 7, 4), (0, 6, 8, 3) ]
 
 register(
 	id='PacmanEnv-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False})
 
 register(
 	id='PacmanEnvSmartPredators-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': True})
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': True})
 
 register(
-	id='PacmanEnvSmartBoth-v0',
+	id='PacmanEnvMini1-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': True, 'smart_predator': True})
+	kwargs={'barriers': [], 'grid_size':3, 'num_agents':2, 'prey_style': 'random', 'smart_predator': False}
+)
 
 register(
-	id='PacmanEnv2-v1',
+	id='PacmanEnvMini2-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'smart_prey': False, 'smart_predator': False})
+	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False}
+)

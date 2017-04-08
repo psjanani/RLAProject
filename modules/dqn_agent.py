@@ -82,24 +82,41 @@ class DQNAgent:
 	def create_buffer(self, env):
 		self.reset(env)
 
-		env.smart_auto_moves = self.smart_burn_in
+		if self.smart_burn_in:
+			env.quick_burn_in()
+
+		S = self.preprocessor.get_state(self.id) 
+
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
-			action_str = ['*'] * self.num_pred
-			S = self.preprocessor.get_state(self.id)
-			A = np.random.randint(self.num_actions)
-			action_str[self.id] = str(A)
+			if self.smart_burn_in:
+				action_str = ''
+			else:
+				action_str = ['*'] * self.num_pred
+				A = np.random.randint(self.num_actions)
+				action_str[self.id] = str(A)
+
 			s_prime, R, is_terminal, debug_info = env.step("".join(action_str))
+
+			# retrieve state (from env) since it's chosen by env
+			if self.smart_burn_in:
+				A = env.latest_first_pred_action
+
 			self.preprocessor.add_state(s_prime)
+			
 			# get new processed state frames
 			S_prime = self.preprocessor.get_state(self.id)
 			R = self.preprocessor.process_reward(R)
-			A = env.latest_first_pred_action
+
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
+
+			S = S_prime
+
 			if is_terminal:
 				self.reset(env)
 
-		env.smart_auto_moves = False # reset smart predator
+		if self.smart_burn_in:
+			env.revert()
 
 	# resets both environment and preprocessor			
 	def reset(self, env):
