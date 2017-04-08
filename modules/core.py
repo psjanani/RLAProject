@@ -15,6 +15,7 @@ class RingBuffer:
             """ Append an element overwriting the oldest one. """
             self.data[int(self.cur)] = x
             self.cur = (int(self.cur) + 1) % self.max
+
         def get(self):
             """ return list of elements in correct order """
             return self.data[int(self.cur):]+self.data[:int(self.cur)]

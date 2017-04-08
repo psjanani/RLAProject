@@ -1,5 +1,5 @@
 # coding: utf-8
-"""Define the Queue environment from problem 3 here."""
+"""PacmanEnvs environmen."""
 
 from __future__ import (absolute_import, division, print_function,
 						unicode_literals)
@@ -267,7 +267,6 @@ class PacmanEnv(Env):
 						next_positions[idx] = curr_positions[idx]
 
 		return next_positions
-
 
 	def _step(self, action):
 		action_str = str("".join(action))

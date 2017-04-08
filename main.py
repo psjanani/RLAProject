@@ -29,6 +29,7 @@ def main():
     parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
     parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
+
     parser.add_argument('--eval_num', default=1000, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
     parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
@@ -40,11 +41,13 @@ def main():
     parser.add_argument('--max_episode_length', default=1000, type=int, help='Max episode length (for training, not eval).')
     parser.add_argument('--memory', default=1e6, type=int, help='size of buffer for experience replay')
     parser.add_argument('--momentum', default=0.95, type=float)
+    parser.add_argument('--nash', default=True, type=bool)
     parser.add_argument('--solo_train', default=True, type=bool, help='Whether to train models one at a time or simultaneously.')
     parser.add_argument('--agent_dissemination_freq', default=1e4, type=int, help='If solo training, how frequently to copy trained weights to other untrained agents.')
     parser.add_argument('--network_name', default='deep', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
     parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
+
     parser.add_argument('--num_decay_steps', default=1e6, type=int, help='Epsilon policy decay length')
     parser.add_argument('--num_iterations', default=2e6, type=int, help='Number frames visited for training.')
     parser.add_argument('--smart_burn_in', default=False, type=bool)
@@ -67,14 +70,17 @@ def main():
     # make environment
     env = gym.make(args.env)
     args.num_agents = env.num_agents
+    args.num_pred = env.num_predators
 
     if args.v == 'def':
-        print "You might want to name your experiment for later reference"
+        print "You might want to name your experiment for later reference."
 
     args.dim = env.grid_size
 
     if 'Pacman' in args.env:
         args.num_actions = 4
+        if args.nash:
+            args.num_actions = args.num_actions ** args.num_pred
     elif 'Warehouse' in args.env:
         args.num_actions = 6
     else:
