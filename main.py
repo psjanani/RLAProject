@@ -13,7 +13,6 @@ from modules.multi_agent import *
 import envs.pacman_envs
 from os.path import expanduser
 
-
 def make_assertions(args):
     algo = args.algorithm
     network_name = args.network_name

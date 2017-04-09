@@ -382,3 +382,9 @@ register(
 	entry_point='envs.pacman_envs:PacmanEnv',
 	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False}
 )
+
+register(
+	id='PacmanEnvMini2-SmartPrey-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
+)
