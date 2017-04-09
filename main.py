@@ -18,7 +18,7 @@ def make_assertions(args):
     algo = args.algorithm
     network_name = args.network_name
     assert network_name == 'stanford' or network_name == 'linear' or network_name == 'deep' or 'dueling' in network_name
-    assert algo == 'basic' or algo == 'replay_target' or algo == 'double'
+    assert algo == 'basic' or algo == 'replay_target' or algo == 'double' or algo == 'priority'
 
 def main():
     parser = argparse.ArgumentParser(description='Run DQN on Pacman!')
@@ -38,9 +38,9 @@ def main():
     parser.add_argument('--lr', default=0.00025, type=float, help='(initial) learning rate')
     parser.add_argument('--max_test_episode_length', default=1500, type=int, help='Max episode length for testing.')
     parser.add_argument('--max_episode_length', default=1000, type=int, help='Max episode length (for training, not eval).')
-    parser.add_argument('--memory', default=1e6, type=int, help='size of buffer for experience replay')
+    parser.add_argument('--memory', default=5e4, type=int, help='size of buffer for experience replay')
     parser.add_argument('--momentum', default=0.95, type=float)
-    parser.add_argument('--solo_train', default=True, type=bool, help='Whether to train models one at a time or simultaneously.')
+    parser.add_argument('--solo_train', default=False, type=bool, help='Whether to train models one at a time or simultaneously.')
     parser.add_argument('--agent_dissemination_freq', default=1e4, type=int, help='If solo training, how frequently to copy trained weights to other untrained agents.')
     parser.add_argument('--network_name', default='deep', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')

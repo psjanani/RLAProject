@@ -61,7 +61,10 @@ class IndependentDQN(MultiAgent):
                 model = self.m.create_model()
                 model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
                 if (args.num_burn_in != 0):
-                    buffer = NaiveReplay(args.memory, True, None)
+                    if (self.algorithm == "replay_target"):
+                        buffer = NaiveReplay(args.memory, True, None)
+                    else:
+                        buffer = Prioritized_Replay(args.memory, 10000, args.batch_size)
             self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
 
         return model

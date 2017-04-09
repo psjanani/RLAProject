@@ -135,6 +135,7 @@ class Experience(object):
         :return: None
         """
         for i in range(0, len(indices)):
+
             self.priority_queue.update(math.fabs(delta[i]), indices[i])
 
 
