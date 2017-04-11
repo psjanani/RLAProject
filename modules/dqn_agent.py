@@ -59,6 +59,7 @@ class DQNAgent:
         self.preprocessor = preprocessor
         self.policy = LinearDecayGreedyEpsilonPolicy(args.initial_epsilon, args.end_epsilon, args.num_decay_steps)
         self.buffer = buffer
+        self.args = args
 
         if self.target_fixing:
             self.target = Model.from_config(self.network.get_config())
@@ -73,8 +74,9 @@ class DQNAgent:
     def calc_q_values(self, model, state, expand_dims=False):
         if expand_dims:
             state = np.expand_dims(state, axis=0)
-
         action_mask = np.ones([1, self.num_actions])
+        if self.args.set_controller:
+            action_mask = np.ones([1, self.num_actions * self.num_actions])
         q_values = model.predict_on_batch([state, action_mask])
 
         return q_values.flatten()
@@ -95,6 +97,12 @@ class DQNAgent:
                 action_str = ['*'] * self.num_pred
                 A = np.random.randint(self.num_actions)
                 action_str[self.id] = str(A)
+
+            if self.args.set_controller:
+                action_str = ['*'] * self.num_pred
+                A = np.random.randint(self.num_actions * self.num_actions)
+                action_str[0] = str(A / 4)
+                action_str[1] = str(A % 4)
 
             s_prime, R, is_terminal, debug_info = env.step("".join(action_str))
 
@@ -129,10 +137,13 @@ class DQNAgent:
             sample = self.buffer.sample(self.batch_size)
         else:
             sample, w, id1 = self.buffer.sample(self.batch_size)
-
-        # compute TD target
         true_output_masked = np.zeros([self.batch_size, self.num_actions])
         q_value_index = np.zeros([self.batch_size, self.num_actions])
+        # compute TD target
+        if self.args.set_controller:
+            true_output_masked = np.zeros([self.batch_size, self.num_actions * self.num_actions])
+            q_value_index = np.zeros([self.batch_size, self.num_actions * self.num_actions])
+
         state = None
         delta = []
         for i in range(self.batch_size):

@@ -21,13 +21,14 @@ class HistoryPreprocessor(Preprocessor):
 
     """
 
-    def __init__(self, frame_size, model_name, num_pred, coop, history_length=1):
+    def __init__(self, frame_size, model_name, num_pred, coop, args, history_length=1):
         self.history_length = history_length
         self.model_name = model_name
         self.coop = coop
         self.num_pred = num_pred
         self.frame_size = frame_size
         self.model_name = model_name
+        self.args = args
         self.reset()
 
     def add_state(self, state):
@@ -69,11 +70,11 @@ class HistoryPreprocessor(Preprocessor):
             my_frame[pred_idxs] = 1
 
             predator_id = int(nz_ids[i])
+            if not self.args.set_controller:
+                r = pred_idxs[0][i]
+                c = pred_idxs[1][i]
 
-            r = pred_idxs[0][i]
-            c = pred_idxs[1][i]
-
-            my_frame[r, c] = 2
+                my_frame[r, c] = 2
             full_frames[predator_id - 1, :, :] = my_frame
 
         full_frames += 2

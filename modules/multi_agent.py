@@ -43,15 +43,18 @@ class IndependentDQN(MultiAgent):
         if (model_name == 'stanford'):
             self.m = StanfordModel((args.dim, args.dim), args.num_actions)
 
-        if (model_name == 'deep' or 'dueling' in model_name):
+        if ('deep' in model_name or 'dueling' in model_name):
             self.m = DeepQModel((args.dim, args.dim), args.num_actions, model_name)
 
     def create_model(self, env, args):
         self.model_init(args)
         self.args = args
         self.env = env
+        num_pred = self.number_pred
+        if  args.set_controller:
+            num_pred = 1
+        for i in range(num_pred):
 
-        for i in range(self.number_pred):
             # if train one at a time every model after 1st is a copy of the first's weights
             buffer = None
             if i > 0 and self.args.solo_train:
@@ -70,13 +73,15 @@ class IndependentDQN(MultiAgent):
         return model
 
     def model_init(self, args):
-        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.history)
+        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args, args.history)
 
     def fit(self, num_iterations, eval_num, max_episode_length=None):
         best_reward = -float('inf')
         best_weights = None
-
-        for i in range(self.number_pred):
+        num_pred = self.number_pred
+        if self.args.set_controller:
+            num_pred = 1
+        for i in range(num_pred):
             if not self.args.solo_train or i == 0:
                 self.pred_model[i].create_buffer(self.env)
 
@@ -93,8 +98,11 @@ class IndependentDQN(MultiAgent):
                 A = {}
                 q_values = {}
                 action_string = ""
-                for i in range(self.number_pred):
+                for i in range(num_pred):
                     A[i], q_values[i] = self.pred_model[i].select_action(S[i])
+                    if self.args.set_controller:
+                        action_string += str(A[i] / 4)
+                        action_string += str(A[i] % 4)
                     action_string += str(A[i])
 
                 R, is_terminal = self.step(action_string)
@@ -107,11 +115,11 @@ class IndependentDQN(MultiAgent):
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
                     if self.args.save_weights and num_iters % (5 * self.eval_freq) == 0:
-                        for i in range(self.number_pred):
+                        for i in range(num_pred):
                             model = self.pred_model[i].network
                             model.save(self.args.weight_path + self.args.v + "/" + str(num_iters) + "_" + str(i) + ".hd5")
 
-                for i in range(self.number_pred):
+                for i in range(num_pred):
                     model = self.pred_model[i]
                     if i > 0 and self.args.solo_train:
                         self.pred_model[0].buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
@@ -187,23 +195,28 @@ class IndependentDQN(MultiAgent):
                 total_steps += 1
                 A = {}
                 action_string = ""
-
-                for j in range(self.number_pred):
+                num_agents = self.number_pred
+                if self.args.set_controller:
+                    num_agents = 1
+                for j in range(num_agents):
                     model = self.pred_model[j]
 
                     q_values = model.calc_q_values(model.network, S[j])
 
                     A[j] = greedy_policy.select_action(q_values)
-                    action_string += str(A[j])
+                    if self.args.set_controller:
+                        action_string += str(A[j] / 4)
+                        action_string += str(A[j] % 4)
+                    else:
+                        action_string += str(A[j])
                     max_q_val_sum[j] += np.max(q_values)
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
-
-                # if to_render and i == 0:
-                    # self.env.render()
-                    # print('\n')
-                    # print q_values
-                    # print('\n')
+              #  print action_string
+                if to_render and i == 0:
+                   # print q_values
+                    self.env.render()
+                    print('\n')
 
                 if self.debug_mode:
                     save_states_as_images(S)
@@ -215,7 +228,7 @@ class IndependentDQN(MultiAgent):
 
             total_reward += reward
             rewards.append(reward)
-            for i in range(self.number_pred):
+            for i in range(num_agents):
                 average_q_values[i] += max_q_val_sum[i] / steps
 
         avg_q, avg_reward = np.sum(np.array(average_q_values)) / (num_episodes * self.number_pred), total_reward / num_episodes

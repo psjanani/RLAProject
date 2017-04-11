@@ -155,7 +155,7 @@ class Experience(object):
         # issue 1 by @camigord
         partition_size = math.floor(self.size / self.partition_num)
         partition_max = dist_index * partition_size
-        distribution = self.distributions[dist_index]
+        distribution = self.distributions[int(dist_index)]
         rank_list = []
         # sample from k segments
         for n in range(1, self.batch_size + 1):

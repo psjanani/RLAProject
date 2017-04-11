@@ -358,7 +358,7 @@ class PacmanEnv(Env):
 		return [self.barrier_mask,  self.prey_channel, self.predator_channel], reward, is_terminal, 'no debug information provided'
 
 
-basic_barriers = [ (2, 2, 6, 6) ]
+basic_barriers = [ (2, 2, 3, 3) ]
 advanced_barrier = [ (2, 1, 7, 4), (0, 6, 8, 3) ]
 
 register(
@@ -386,5 +386,5 @@ register(
 register(
 	id='PacmanEnvMini2-SmartPrey-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
+	kwargs={'barriers': basic_barriers, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
 )
