@@ -73,9 +73,10 @@ def main():
     if args.test_mode:
         args.verbose = 0
 
+
     # make environment
     env = gym.make(args.env)
-    #args.num_agents = env.num_agents
+    args.num_agents = env.num_agents
     #args.num_pred = env.num_predators
 
     s = env.reset()

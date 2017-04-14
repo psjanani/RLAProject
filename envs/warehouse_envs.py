@@ -25,8 +25,7 @@ class WarehouseEnv(Env):
     """
     metadata = {'render.modes': ['human']}
 
-    GRID_SIZE = 8
-    BOX_DELIVERY_PT =GRID_SIZE*GRID_SIZE-1
+
 
     DELIVERY_REWARD = 1
 
@@ -49,19 +48,21 @@ class WarehouseEnv(Env):
     DOWN = 2
     LEFT = 3
 
-    def __init__(self):
-        self.nS = WarehouseEnv.GRID_SIZE * WarehouseEnv.GRID_SIZE
+    def __init__(self,grid_size,num_agents):
+        self.nS = grid_size * grid_size
         self.nA = 4
         self.action_space = spaces.Discrete(self.nA)
         self.observation_space = spaces.Discrete(self.nS)
-
-        self.P = dict()       
+        self.grid_size=grid_size
+        self.num_agents=num_agents
+        self.box_delivery_pt=grid_size * grid_size - 1
+        self.P = dict()
         self._seed()
         self._reset()
 
     def linear2sub(self, idx):
-        row = int(idx / WarehouseEnv.GRID_SIZE)
-        col = int(idx % WarehouseEnv.GRID_SIZE)
+        row = int(idx / self.grid_size)
+        col = int(idx % self.grid_size)
 
         return (row, col)
 
@@ -70,7 +71,7 @@ class WarehouseEnv(Env):
         self[obj][row][col] = val
 
     def sub2Linear((r, c)):
-        return r*WarehouseEnv.GRID_SIZE + c
+        return r*self.grid_size + c
 
     def _reset(self):
         """Reset the environment.
@@ -81,7 +82,7 @@ class WarehouseEnv(Env):
         initial state
         """
         # self.s = np.zeros(WarehouseEnv.GRID_SIZE, WarehouseEnv.GRID_SIZE)
-        self.s = [[WarehouseEnv.EMPTY_MARK]*WarehouseEnv.GRID_SIZE for _ in xrange(WarehouseEnv.GRID_SIZE) ]
+        self.s = [[WarehouseEnv.EMPTY_MARK]*self.grid_size for _ in xrange(self.grid_size) ]
 
         # find random position for agent
         starting_agent_pos =self.observation_space.sample()
@@ -99,14 +100,14 @@ class WarehouseEnv(Env):
         r,c = self.linear2sub(starting_box_pos)
         self.s[r][c] = WarehouseEnv.BOX_MARK
 
-        r, c = self.linear2sub(WarehouseEnv.BOX_DELIVERY_PT)
-        self.s[r][c] = WarehouseEnv.BOX_DELIVERY_MARK 
+        r, c = self.linear2sub(self.box_delivery_pt)
+        self.s[r][c] = self.box_delivery_pt
 
         return self.s
 
     def agent_state(self, s):
-        for r in range(WarehouseEnv.GRID_SIZE):
-            for c in range(WarehouseEnv.GRID_SIZE):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 val = s[r][c]
                 if val == WarehouseEnv.AGENT_MARK:
                     return [False, (r, c)]
@@ -118,8 +119,8 @@ class WarehouseEnv(Env):
         # figure out deltas of action
         deltas = WarehouseEnv.ACTION_DELTAS[action]
 
-        new_agent_pos_r = min(max(agent_pos[0] + deltas[0], 0), WarehouseEnv.GRID_SIZE - 1)
-        new_agent_pos_c = min(max(agent_pos[1] + deltas[1], 0), WarehouseEnv.GRID_SIZE - 1)
+        new_agent_pos_r = min(max(agent_pos[0] + deltas[0], 0), self.grid_size - 1)
+        new_agent_pos_c = min(max(agent_pos[1] + deltas[1], 0), self.grid_size - 1)
 
         return (new_agent_pos_r, new_agent_pos_c)
 
@@ -178,8 +179,8 @@ class WarehouseEnv(Env):
         return self.s, reward, is_terminal, 'No debug info provided'
 
     def _render(self, mode='human', close=False):
-        for r in range(WarehouseEnv.GRID_SIZE):
-            for c in range(WarehouseEnv.GRID_SIZE):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 v = self.s[r][c]
 
                 if v == WarehouseEnv.BOX_MARK:
@@ -192,7 +193,8 @@ class WarehouseEnv(Env):
                     print('!!!', end=' ')
                 else:
                     print("___", end=' ')
-            print ("") 
+            print ("")
+        print ("\n")
         return
 
     def _seed(self, seed=None):
@@ -270,5 +272,5 @@ class WarehouseEnv(Env):
 
 register(
     id='Warehouse-v0',
-    entry_point='envs.warehouse_envs:WarehouseEnv')
-    #kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': True})
+    entry_point='envs.warehouse_envs:WarehouseEnv',
+    kwargs={'grid_size':10,'num_agents':4})
