@@ -360,6 +360,7 @@ class PacmanEnv(Env):
 
 basic_barriers = [ (2, 2, 3, 3) ]
 advanced_barrier = [ (2, 1, 7, 4), (0, 6, 8, 3) ]
+advanced_small_barrier = [(2, 1, 3, 1), (0, 3, 3, 1)]
 
 register(
 	id='PacmanEnv-v0',
@@ -384,7 +385,14 @@ register(
 )
 
 register(
+	id='PacmanEnv-SmartPrey-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
+)
+
+
+register(
 	id='PacmanEnvMini2-SmartPrey-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
+	kwargs={'barriers': advanced_small_barrier, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
 )

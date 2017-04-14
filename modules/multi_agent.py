@@ -213,10 +213,10 @@ class IndependentDQN(MultiAgent):
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
               #  print action_string
-                if to_render and i == 0:
+            #    if to_render and i == 0:
                    # print q_values
-                    self.env.render()
-                    print('\n')
+             #       self.env.render()
+              #      print('\n')
 
                 if self.debug_mode:
                     save_states_as_images(S)

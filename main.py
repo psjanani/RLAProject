@@ -28,7 +28,7 @@ def main():
     parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
     parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
-    parser.add_argument('--eval_num', default=1000, type=int, help='Number of episodes to evaluate on.')
+    parser.add_argument('--eval_num', default=100, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
     parser.add_argument('--gamma', default=0.95, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
