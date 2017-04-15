@@ -1,1 +1,7 @@
-...TODO
+Experiment 1: python main.py --env PacmanEnvSmallBarrier2-v0 --gamma 0.8 --initial_epsilon 0.5 --max_episode_length 10 --max_test_episode_length 50 --network_name dueling
+
+Experiment 2: python main.py --env PacmanEnvSmallBarrier2-v0 --gamma 0.8 --initial_epsilon 0.5 --max_episode_length 10 --max_test_episode_length 50 --network_name dueling --tie_break greedy
+
+Experiment 3: python main.py --env PacmanEnvSmallBarrier2-v0 --gamma 0.8 --initial_epsilon 0.5 --max_episode_length 10 --max_test_episode_length 50 --network_name dueling --no_nash_choice best_max
+
+Experiment 4: python main.py --env PacmanEnvSmallBarrier2-v0 --gamma 0.8 --initial_epsilon 0.5 --max_episode_length 10 --max_test_episode_length 50 --network_name dueling --algorithm double

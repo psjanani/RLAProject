@@ -1,4 +1,4 @@
-from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda
+from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda, Dropout
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.core import RepeatVector
 from keras.models import Model
@@ -39,6 +39,9 @@ class StanfordModel(Models):
     def create_model(self):
         img_dims = (self.input_shape[0], self.input_shape[1])
         state_input = Input(shape=img_dims, name='state_input')
+
+        # state_input_padded = ZeroPadding2D((1,1))(state_input)
+
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
         conv1 = Convolution2D(32, 3, 3, \
@@ -82,8 +85,11 @@ class DeepQModel(Models):
         state_input = Input(shape=img_dims, name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        conv = Convolution2D(16, 3, 3, activation='relu',
+        conv = Convolution2D(32, 3, 3, activation='relu',
                                    border_mode='same', subsample=(1, 1))(state_input)
+
+        if self.input_shape[0] > 3:
+            conv = Convolution2D(32, 3, 3, activation='relu', border_mode='same', subsample=(1,1))(conv)
 
         conv2 = Convolution2D(32, 2, 2, activation='relu',
             border_mode='same', subsample=(1, 1))(conv)
@@ -110,8 +116,12 @@ class DeepQModel(Models):
             merged_action = merge(inputs=[rep_value, advan_merge], mode='sum', name='merged_action')
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
         else:
-            dense_layer1 = Dense(64, activation='sigmoid')(flatten)
-            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer1)
+            dense_layer1 = Dense(256, activation='relu')(flatten)
+            dropout = Dropout(0.5)(dense_layer1)
+            dense_layer2 = Dense(128, activation='relu')(dropout)
+            dropout = Dropout(0.5)(dense_layer2)
+
+            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dropout)
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 
         model = Model(input=[state_input, action_mask], output=masked_output)

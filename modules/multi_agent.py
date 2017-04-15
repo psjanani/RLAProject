@@ -26,8 +26,13 @@ class IndependentDQN(MultiAgent):
         self.number_pred = number_agents / 2
         self.pred_model = {}
         self.coop = args.coop
+
+        self.tie_break = args.tie_break
+        self.no_nash_choice = args.no_nash_choice
+
         self.gamma = args.gamma
         self.debug_mode = args.debug_mode
+        self.full_info = args.full_info
         self.max_test_episode_length = args.max_test_episode_length
         self.agent_dissemination_freq = args.agent_dissemination_freq
         self.algorithm = args.algorithm
@@ -71,6 +76,18 @@ class IndependentDQN(MultiAgent):
     def model_init(self, args):
         self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.history)
 
+    def select_actions(self, q_values1, q_values2, num_iters):
+        if self.full_info:
+            A = self.select_joint_actions(q_values1, q_values2, num_iters)
+            for i in range(len(A)):
+                A[i] = str(A[i])
+        else:
+            A1 = self.select_joint_actions(q_values1, q_values1, num_iters)
+            A2 = self.select_joint_actions(q_values2, q_values2, num_iters)
+            A = [ str(A1[0]) , str(A2[0]) ]
+
+        return A
+
     def select_joint_actions(self, q_values1, q_values2, num_iters):
         threshold = np.random.rand()
 
@@ -91,6 +108,9 @@ class IndependentDQN(MultiAgent):
         br2 = np.argmax(payoffs2, axis=1)
 
         nash_eq = []
+        nash_eq_q1 = []
+        nash_eq_q2 = []
+        nash_eq_qsum = []
 
         for i in range(4):
             action1 = br1[i]
@@ -98,13 +118,41 @@ class IndependentDQN(MultiAgent):
 
             other_action2 = br2[action1]
 
-            if action2 == other_action2:
+            if action2 == other_action2:                
                 nash_eq.append([str(action1), str(action2)])
 
+                q_val1 = payoffs1[action1, action2]
+                q_val2 = payoffs2[action2, action1]
+
+                nash_eq_q1.append(q_val1)
+                nash_eq_q2.append(q_val2)
+                nash_eq_qsum.append(q_val1 + q_val2)
+
         if len(nash_eq) > 0:
-            return nash_eq[np.random.randint(len(nash_eq))]
+            ## if we maxize joint
+            if self.tie_break == 'max':
+                nash_idx = np.argmax(nash_eq_qsum)
+            elif self.tie_break == 'greedy':
+                action1 = nash_eq[np.argmax(nash_eq_q1)][0]
+                action2 = nash_eq[np.argmax(nash_eq_q2)][1]
+                return [action1, action2]
+            else:
+                nash_idx = np.random.randint(len(nash_eq))
+
+            return nash_eq[nash_idx]
         else:
-            return [ np.argmax(np.sum(payoffs1, axis=0)), np.argmax(np.sum(payoffs2, axis=0)) ]
+            if self.no_nash_choice == 'best_sum':
+                action1 = np.argmax(np.sum(payoffs1, axis=0))
+                action2 = np.argmax(np.sum(payoffs2, axis=0))
+            elif self.no_nash_choice == 'best_max':
+                action1 = np.argmax(np.max(payoffs1, axis=0))
+                action2 = np.argmax(np.max(payoffs2, axis=0))
+            else: # must be random
+                action1 = np.random.randint(4)
+                action2 = np.random.randint(4)
+                return [action1, action2]
+
+            return [ action1, action2 ]
 
 
     def fit(self, num_iterations, eval_num, max_episode_length=None):
@@ -129,15 +177,13 @@ class IndependentDQN(MultiAgent):
                 for i in range(self.number_pred):
                     q_values.append(self.pred_model[i].calc_q_values(self.pred_model[i].network, S[i]))
 
-                A = self.select_joint_actions(q_values[0], q_values[1], num_iters)
-                for i in range(len(A)):
-                    A[i] = str(A[i])
+                A = self.select_actions(q_values[0], q_values[1], num_iters)
 
                 R, is_terminal = self.step(A)
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
-                    avg_reward, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, num_iters % 50000 == 0)
+                    avg_reward, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, num_iters % (self.eval_freq * 5) == 0)
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
                     if self.args.save_weights and num_iters % (5 * self.eval_freq) == 0:
@@ -207,7 +253,7 @@ class IndependentDQN(MultiAgent):
         greedy_policy = GreedyEpsilonPolicy(0.0)
         total_steps = 0
 
-        for i in range(num_episodes):
+        for ne in range(num_episodes):
             reward = 0.0
             df = 1.0
 
@@ -229,16 +275,16 @@ class IndependentDQN(MultiAgent):
                 for i in range(self.number_pred):
                     q_values.append(self.pred_model[i].calc_q_values(self.pred_model[i].network, S[i]))
 
-                A = self.select_joint_actions(q_values[0], q_values[1], 10000000)
+                A = self.select_actions(q_values[0], q_values[1], 10000000)
 
                 for i in range(len(A)):
                     A[i] = str(A[i])
 
                 s_prime, R, is_terminal, debug_info = self.env.step(A)
 
-                if to_render and i == 0:
-                    self.env.render()
-                    print('\n')
+                # if to_render and ne == 0:
+                #     self.env.render()
+                #     print('\n')
 
                 R = self.preprocessor.process_reward(R)
                 reward += R[0] * df # same for each predator bc/ it's cooperative

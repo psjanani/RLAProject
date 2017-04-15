@@ -70,6 +70,9 @@ class DQNAgent:
 		else:
 			raise Exception("This should not happen.  Check boolean instance variables.")
 
+	def save(self, path):
+		self.network.save(path)
+
 	def calc_q_values(self, model, state):
 		if len(state.shape) < 2:
 			state = np.expand_dims(state, axis=0)
@@ -177,7 +180,7 @@ class DQNAgent:
 	def update_model(self, num_iters):
 		minibatch, q_value_index, true_output_masked = self.get_minibatch()
 		loss = self.network.train_on_batch([minibatch, q_value_index], true_output_masked)
-		render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
+		# render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
 
 	def switch_roles(self):
 		should_switch = np.random.rand() < 0.5
