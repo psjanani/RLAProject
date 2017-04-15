@@ -34,9 +34,7 @@ class IndependentDQN(MultiAgent):
         self.optimizer = optimizer
         self.eval_freq = args.eval_freq
         self.eval_num = args.eval_num
-        self.initial_epsilon = args.initial_epsilon
-        self.num_decay_steps = args.num_decay_steps
-        self.end_epsilon = args.end_epsilon
+
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
@@ -45,15 +43,18 @@ class IndependentDQN(MultiAgent):
         if (model_name == 'stanford'):
             self.m = StanfordModel((args.dim, args.dim), args.num_actions)
 
-        if (model_name == 'deep' or 'dueling' in model_name):
+        if ('deep' in model_name or 'dueling' in model_name):
             self.m = DeepQModel((args.dim, args.dim), args.num_actions, model_name)
 
     def create_model(self, env, args):
         self.model_init(args)
         self.args = args
         self.env = env
+        num_pred = self.number_pred
+        if  args.set_controller:
+            num_pred = 1
+        for i in range(num_pred):
 
-        for i in range(self.number_pred):
             # if train one at a time every model after 1st is a copy of the first's weights
             buffer = None
             if i > 0 and self.args.solo_train:
@@ -63,55 +64,24 @@ class IndependentDQN(MultiAgent):
                 model = self.m.create_model()
                 model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
                 if (args.num_burn_in != 0):
-                    buffer = NaiveReplay(args.memory, True, None)
+                    if (self.algorithm == "replay_target"):
+                        buffer = NaiveReplay(args.memory, True, None)
+                    else:
+                        buffer = Prioritized_Replay(args.memory, 10000, args.batch_size)
             self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
 
         return model
 
     def model_init(self, args):
-        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.history)
-
-    def select_joint_actions(self, q_values1, q_values2, num_iters):
-        threshold = np.random.rand()
-
-        perc = min(num_iters / self.num_decay_steps, 1.0)
-        epsilon = perc * self.end_epsilon + ( 1.0 - perc) * self.initial_epsilon
-
-        is_random = epsilon > threshold
-
-        if is_random:
-            action1 = np.random.randint(4)
-            action2 = np.random.randint(4)
-            return [action1, action2]
-
-        payoffs1 = np.reshape(q_values1, [4, 4])
-        payoffs2 = np.reshape(q_values2, [4, 4])
-
-        br1 = np.argmax(payoffs1, axis=1)
-        br2 = np.argmax(payoffs2, axis=1)
-
-        nash_eq = []
-
-        for i in range(4):
-            action1 = br1[i]
-            action2 = i
-
-            other_action2 = br2[action1]
-
-            if action2 == other_action2:
-                nash_eq.append([str(action1), str(action2)])
-
-        if len(nash_eq) > 0:
-            return nash_eq[np.random.randint(len(nash_eq))]
-        else:
-            return [ np.argmax(np.sum(payoffs1, axis=0)), np.argmax(np.sum(payoffs2, axis=0)) ]
-
+        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args, args.history)
 
     def fit(self, num_iterations, eval_num, max_episode_length=None):
         best_reward = -float('inf')
         best_weights = None
-
-        for i in range(self.number_pred):
+        num_pred = self.number_pred
+        if self.args.set_controller:
+            num_pred = 1
+        for i in range(num_pred):
             if not self.args.solo_train or i == 0:
                 self.pred_model[i].create_buffer(self.env)
 
@@ -125,46 +95,42 @@ class IndependentDQN(MultiAgent):
             while steps < max_episode_length and not is_terminal:
                 # compute step and gather SARS pair
                 S = self.preprocessor.get_state()
-                q_values = []
-                for i in range(self.number_pred):
-                    q_values.append(self.pred_model[i].calc_q_values(self.pred_model[i].network, S[i]))
+                A = {}
+                q_values = {}
+                action_string = ""
+                for i in range(num_pred):
+                    A[i], q_values[i] = self.pred_model[i].select_action(S[i])
+                    if self.args.set_controller:
+                        action_string += str(A[i] / 4)
+                        action_string += str(A[i] % 4)
+                    action_string += str(A[i])
 
-                A = self.select_joint_actions(q_values[0], q_values[1], num_iters)
-                for i in range(len(A)):
-                    A[i] = str(A[i])
-
-                R, is_terminal = self.step(A)
+                R, is_terminal = self.step(action_string)
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
 
-                    avg_reward, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, num_iters % 50000 == 0)
-                    print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_steps=' \
+                    avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num, self.max_test_episode_length, num_iters % (self.eval_freq * 5) == 0)# num_iters % 50000 == 0)
+
+                    print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
-                    if self.args.save_weights:
-                        for i in range(self.number_pred):
+                    if self.args.save_weights and num_iters % (5 * self.eval_freq) == 0:
+                        for i in range(num_pred):
                             model = self.pred_model[i].network
                             model.save(self.args.weight_path + self.args.v + "/" + str(num_iters) + "_" + str(i) + ".hd5")
 
-                for i in range(self.number_pred):
+                for i in range(num_pred):
                     model = self.pred_model[i]
                     if i > 0 and self.args.solo_train:
-                        my_A = int(A[i]) * 4 + int(A[0])
-
-                        print my_A
-
-                        self.pred_model[0].buffer.append(S[i], my_A, R[i], S_prime[i], is_terminal)
+                        self.pred_model[0].buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
 
                         if num_iters % self.agent_dissemination_freq == 0:
                             get_hard_target_model_updates(self.pred_model[0].network, model.network)
                     else:
-                        other_idx = 0 if i == 1 else 0
-                        my_A = int(A[i]) * 4 + int(A[other_idx])
-
-                        model.buffer.append(S[i], my_A, R[i], S_prime[i], is_terminal)
+                        model.buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
                         if model.target_fixing and num_iters % model.target_update_freq == 0:
                             get_hard_target_model_updates(model.target, model.network)
-                        if num_iters % model.update_freq == 0:
+                        if num_iters % model.update_freq == 0 or is_terminal:
                             model.update_model(num_iters)
                             if model.coin_flip:
                                 model.switch_roles()
@@ -202,6 +168,7 @@ class IndependentDQN(MultiAgent):
 
     def evaluate(self, num_episodes, max_episode_length, to_render):
         total_reward = 0.0
+        average_q_values = [0.0] * self.number_pred
         rewards = []
 
         # evaluation always uses greedy policy
@@ -218,6 +185,7 @@ class IndependentDQN(MultiAgent):
             self.preprocessor.add_state(s)
 
             steps = 0
+            max_q_val_sum = [0] * self.number_pred
             is_terminal = False
 
             while not is_terminal and steps < max_episode_length:
@@ -225,21 +193,33 @@ class IndependentDQN(MultiAgent):
 
                 steps += 1
                 total_steps += 1
+                A = {}
+                action_string = ""
+                num_agents = self.number_pred
+                if self.args.set_controller:
+                    num_agents = 1
+                for j in range(num_agents):
+                    model = self.pred_model[j]
 
-                q_values = []
-                for i in range(self.number_pred):
-                    q_values.append(self.pred_model[i].calc_q_values(self.pred_model[i].network, S[i]))
+                    q_values = model.calc_q_values(model.network, S[j])
 
-                A = self.select_joint_actions(q_values[0], q_values[1], 10000000)
+                    A[j] = greedy_policy.select_action(q_values)
+                    if self.args.set_controller:
+                        action_string += str(A[j] / 4)
+                        action_string += str(A[j] % 4)
+                    else:
+                        action_string += str(A[j])
+                    max_q_val_sum[j] += np.max(q_values)
 
-                for i in range(len(A)):
-                    A[i] = str(A[i])
+                s_prime, R, is_terminal, debug_info = self.env.step(action_string)
+              #  print action_string
+                if to_render and i == 0:
+                   # print q_values
+                    self.env.render()
+                    print('\n')
 
-                s_prime, R, is_terminal, debug_info = self.env.step(A)
-
-                # if to_render and i == 0:
-                #     self.env.render()
-                #     print('\n')
+                if self.debug_mode:
+                    save_states_as_images(S)
 
                 R = self.preprocessor.process_reward(R)
                 reward += R[0] * df # same for each predator bc/ it's cooperative
@@ -248,9 +228,10 @@ class IndependentDQN(MultiAgent):
 
             total_reward += reward
             rewards.append(reward)
+            for i in range(num_agents):
+                average_q_values[i] += max_q_val_sum[i] / steps
 
-
-        avg_reward = total_reward / num_episodes
+        avg_q, avg_reward = np.sum(np.array(average_q_values)) / (num_episodes * self.number_pred), total_reward / num_episodes
         avg_steps = total_steps / num_episodes
-        return avg_reward, avg_steps, np.max(rewards), np.std(rewards)
+        return avg_reward, avg_q, avg_steps, np.max(rewards), np.std(rewards)
 

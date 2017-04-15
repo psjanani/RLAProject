@@ -73,19 +73,20 @@ def main():
     if args.test_mode:
         args.verbose = 0
 
-
     # make environment
     env = gym.make(args.env)
     args.num_agents = env.num_agents
     #args.num_pred = env.num_predators
 
     s = env.reset()
-    for _ in range(20):
+    for _ in range(100):
         env.render()
         # your agent here (this takes random actions)
         action = env.action_space.sample()
-        observation, reward, done, info = env.step(action)
-        time.sleep(1)
+        print (action)
+        observation, reward, done, info = env.step((action))
+        print (reward)
+        time.sleep(0.5)
         if done:
             env.render()
             break

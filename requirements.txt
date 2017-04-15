@@ -3,12 +3,3 @@ gym
 numpy
 six
 -e .
-attrs
-h5py
-keras
-matplotlib
-pillow
-protobuf>=3.0
-pydot-ng
-scipy
-semver

@@ -80,14 +80,14 @@ class DeepQModel(Models):
         # 10 x 10 x channels (1)
         img_dims = (self.input_shape[0], self.input_shape[1], 1)
         state_input = Input(shape=img_dims, name='state_input')
-        action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        conv = Convolution2D(16, 4, 4, activation='relu',
-                                   border_mode='same', subsample=(2, 2))(state_input)
+
+        conv = Convolution2D(16, 3, 3, activation='relu',
+                                   border_mode='same', subsample=(1, 1))(state_input)
 
         conv2 = Convolution2D(32, 2, 2, activation='relu',
             border_mode='same', subsample=(1, 1))(conv)
-
+        print self.model_name
         flatten = Flatten()(conv2)
 
         if "dueling" in self.model_name:
@@ -106,14 +106,22 @@ class DeepQModel(Models):
                 advan_merge = Lambda(lambda y: y - K.max(y, keepdims=True), output_shape=(self.num_actions,))(advantage_out)
             else:
                 advan_merge = advantage_out
-
+            action_mask = Input(shape=(self.num_actions,), name='action_mask')
             merged_action = merge(inputs=[rep_value, advan_merge], mode='sum', name='merged_action')
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
         else:
             dense_layer1 = Dense(64, activation='sigmoid')(flatten)
-            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer1)
-            masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+            if "combo" in self.model_name:
+                action_mask = Input(shape=(self.num_actions * self.num_actions,), name='action_mask')
+                action_output = Dense(self.num_actions * self.num_actions, activation='linear', name='action_output')(dense_layer1)
+                masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+            else:
+                action_mask = Input(shape=(self.num_actions,), name='action_mask')
+                action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer1)
+                masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 
         model = Model(input=[state_input, action_mask], output=masked_output)
+
+        model.summary()
 
         return model

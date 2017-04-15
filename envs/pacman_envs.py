@@ -1,5 +1,5 @@
 # coding: utf-8
-"""PacmanEnvs environmen."""
+"""Define the Queue environment from problem 3 here."""
 
 from __future__ import (absolute_import, division, print_function,
 						unicode_literals)
@@ -268,6 +268,7 @@ class PacmanEnv(Env):
 
 		return next_positions
 
+
 	def _step(self, action):
 		action_str = str("".join(action))
 		actions = np.zeros(self.num_agents)
@@ -357,7 +358,7 @@ class PacmanEnv(Env):
 		return [self.barrier_mask,  self.prey_channel, self.predator_channel], reward, is_terminal, 'no debug information provided'
 
 
-basic_barriers = [ (2, 2, 6, 6) ]
+basic_barriers = [ (2, 2, 3, 3) ]
 advanced_barrier = [ (2, 1, 7, 4), (0, 6, 8, 3) ]
 
 register(
@@ -369,3 +370,21 @@ register(
 	id='PacmanEnvSmartPredators-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
 	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': True})
+
+register(
+	id='PacmanEnvMini1-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': [], 'grid_size':3, 'num_agents':2, 'prey_style': 'random', 'smart_predator': False}
+)
+
+register(
+	id='PacmanEnvMini2-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False}
+)
+
+register(
+	id='PacmanEnvMini2-SmartPrey-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': basic_barriers, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
+)

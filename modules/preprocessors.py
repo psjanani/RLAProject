@@ -21,23 +21,18 @@ class HistoryPreprocessor(Preprocessor):
 
     """
 
-    def __init__(self, frame_size, model_name, num_pred, coop, history_length=1):
+    def __init__(self, frame_size, model_name, num_pred, coop, args, history_length=1):
         self.history_length = history_length
         self.model_name = model_name
         self.coop = coop
         self.num_pred = num_pred
         self.frame_size = frame_size
         self.model_name = model_name
+        self.args = args
         self.reset()
 
     def add_state(self, state):
         state = np.array(state)
-        prey_channel = state[1][:][:]
-        prey_idxs = np.nonzero(prey_channel)
-        prey_channel[prey_idxs] = -2
-
-        state = np.add(np.add(state[0, :, :], state[1, :, :]), state[2, :, :])
-
         self.frames = state
 
         return self.frames
@@ -45,7 +40,7 @@ class HistoryPreprocessor(Preprocessor):
     def process_reward(self, reward):
         rewards = [0] * self.num_pred
 
-        reward_val = 10
+        reward_val = 1
 
         for num in reward:
             if self.coop:
@@ -69,11 +64,11 @@ class HistoryPreprocessor(Preprocessor):
             my_frame[pred_idxs] = 1
 
             predator_id = int(nz_ids[i])
+            if not self.args.set_controller:
+                r = pred_idxs[0][i]
+                c = pred_idxs[1][i]
 
-            r = pred_idxs[0][i]
-            c = pred_idxs[1][i]
-
-            my_frame[r, c] = 2
+                my_frame[r, c] = 2
             full_frames[predator_id - 1, :, :] = my_frame
 
         full_frames += 2

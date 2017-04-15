@@ -50,8 +50,8 @@ class WarehouseEnv(Env):
 
     def __init__(self,grid_size,num_agents):
         self.nS = grid_size * grid_size
-        self.nA = 4
-        self.action_space = spaces.Discrete(self.nA)
+        self.nA = 4**(self.num_agents)
+        self.action_space = self.action_space = spaces.MultiDiscrete([(0,3)]*self.num_agents)
         self.observation_space = spaces.Discrete(self.nS)
         self.grid_size=grid_size
         self.num_agents=num_agents
@@ -65,6 +65,14 @@ class WarehouseEnv(Env):
         col = int(idx % self.grid_size)
 
         return (row, col)
+
+    def random_idx(self):
+        idx = np.random.random_integers(0, self.grid_size * self.grid_size - 1)
+        row = int(idx / self.grid_size)
+        col = int(idx % self.grid_size)
+
+        return row, col
+
 
     def linear_insert(self, obj, linear_idx, val):
         (row, col) = self.linear2sub(linear_idx)
@@ -82,10 +90,17 @@ class WarehouseEnv(Env):
         initial state
         """
         # self.s = np.zeros(WarehouseEnv.GRID_SIZE, WarehouseEnv.GRID_SIZE)
-        self.s = [[WarehouseEnv.EMPTY_MARK]*self.grid_size for _ in xrange(self.grid_size) ]
+        self.agent_channel = [[0] * self.grid_size for _ in xrange(self.grid_size)]
+
+        # random placement of agents first
+        for i in range(1, self.num_agents + 1):
+            (r, c) = self.random_idx()
+            while agent_channel[int(r)][int(c)]!=0:
+                self.agent_channel[int(r)][int(c)] = i
+                (r, c) = self.random_idx()
 
         # find random position for agent
-        starting_agent_pos =self.observation_space.sample()
+        #starting_agent_pos =self.observation_space.sample()
 
         # find random position for box not already occupied
         starting_box_pos = self.observation_space.sample()
@@ -273,4 +288,4 @@ class WarehouseEnv(Env):
 register(
     id='Warehouse-v0',
     entry_point='envs.warehouse_envs:WarehouseEnv',
-    kwargs={'grid_size':10,'num_agents':4})
+    kwargs={'grid_size':5,'num_agents':4})
