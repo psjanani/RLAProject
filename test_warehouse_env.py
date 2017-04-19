@@ -12,7 +12,6 @@ from modules.utils import argrender
 from modules.models import *
 from modules.multi_agent import *
 import envs.pacman_envs
-import envs.warehouse_envs
 from os.path import expanduser
 
 def make_assertions(args):
@@ -22,13 +21,13 @@ def make_assertions(args):
     assert algo == 'basic' or algo == 'replay_target' or algo == 'double'
 
 def main():
-    parser = argparse.ArgumentParser(description='Run DQN on Pacman!')
+    parser = argparse.ArgumentParser(description='Run DQN on Warehouse!')
     parser.add_argument('--algorithm', default='replay_target', help='One of basic, replay_target, double')
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
     parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
-    parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
+    parser.add_argument('--env', default='Warehouse-v0', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
 
     parser.add_argument('--eval_num', default=1000, type=int, help='Number of episodes to evaluate on.')
@@ -77,78 +76,20 @@ def main():
     # make environment
     env = gym.make(args.env)
     args.num_agents = env.num_agents
-    args.num_pred = env.num_predators
 
-    s = env.reset()
-    env.render(0)
+
+    env.render()
     for i in range(200):
         # your agent here (this takes random actions)
         action = env.action_space.sample()
         #print (action)
         observation, reward, done, info = env.step((action))
-        env.render(i+1)
+        env.render()
+        time.sleep(0.5)
         if done:
-            env.render(i+1)
+            env.render()
             break
 
-    if args.v == 'def':
-        print "You might want to name your experiment for later reference."
-
-    args.dim = env.grid_size
-
-    if 'Pacman' in args.env:
-        args.num_actions = 4
-        if args.nash:
-            args.num_actions = args.num_actions ** args.num_pred
-    elif 'Warehouse' in args.env:
-        args.num_actions = 6
-    else:
-        args.num_actions = env.action_space.n
-        ## not sure
-    args.weight_path = expanduser(args.weight_path)
-    mypath = args.weight_path + "/" + args.v
-    if not os.path.isdir(mypath):
-        os.makedirs(mypath)
-
-    LOG_FILENAME = args.weight_path + args.v + ".log"
-    f = open(LOG_FILENAME, 'w')
-    for key in vars(env):
-        f.write(str(key) + '=' + str(getattr(env, key)) + "\n")
-    for arg in vars(args):
-        f.write(arg + '=' + str(getattr(args, arg)) + "\n")
-    f.close()
-
-    if args.verbose == 2:
-        argrender(args)
-
-    if args.optimizer == 'rmsprop':
-        optimizer = RMSprop(lr=args.lr)
-    elif args.optimizer == 'sgd':
-        optimizer = SGD(lr=args.lr, momentum=args.momentum)
-    elif args.optimizer == 'adam':
-        optimizer = Adam(lr=args.lr)
-    elif args.optimizer == 'nadam':
-        optimizer = Nadam(lr=args.lr)
-    else:
-        raise Exception("Only rmsprop, sgd, nadam, and adam currently supported.")
-
-    if args.loss == 'mean_huber':
-        loss = mean_huber_loss
-    elif args.loss == 'huber':
-        loss = huber_loss
-    else:
-        loss = args.loss
-
-    # Create the multi-Agent setting
-    multiagent = IndependentDQN(args.num_agents, args.network_name, args, optimizer, loss)
-    multiagent.create_model(env, args)
-    if args.save_weights:
-        for i in range(multiagent.number_pred):
-            model = multiagent.pred_model[i].network
-            model_json = model.to_json()
-            with open(args.weight_path + args.v + "/model" + str(i) + ".json", "w") as json_file:
-                json_file.write(model_json)
-    multiagent.fit(args.num_iterations, args.eval_num, args.max_episode_length)
 
 
 if __name__ == '__main__':

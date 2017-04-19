@@ -2,389 +2,424 @@
 """Define the Queue environment from problem 3 here."""
 
 from __future__ import (absolute_import, division, print_function,
-						unicode_literals)
+                        unicode_literals)
 
 from gym import Env, spaces
 from gym.utils import seeding
 from gym.envs.registration import register
 import random
 import numpy as np
-
+import PIL
+from PIL import Image
+from pylab import figure, axes, pie, title, show
 from distance_from import smart_move
+import matplotlib
+from matplotlib import cm
+from PIL import ImageEnhance
 
 class PacmanEnv(Env):
 
-	metadata = {'render.modes': ['human']}
-
-	MARKS = {
-		'empty': '_',
-		'barrier': '*',
-		'prey': 'O',
-		'predator': 'X'
-	}
+    metadata = {'render.modes': ['human']}
 
-	ACTION_DELTAS = [
-		[-1, 0],
-		[0, 1],
-		[1, 0],
-		[0, -1]
-	]
+    MARKS = {
+        'empty': '_',
+        'barrier': '*',
+        'prey': 'O',
+        'predator': 'X'
+    }
 
-	UP = 0
-	RIGHT = 1
-	DOWN = 2
-	LEFT = 3
+    ACTION_DELTAS = [
+        [-1, 0],
+        [0, 1],
+        [1, 0],
+        [0, -1]
+    ]
 
-	def fill_in_barrier_mask(self, barriers):
-		# mask is 1 where there is a barrier
-		self.barrier_mask = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
-		
-		num_barrier_cells = 0
+    UP = 0
+    RIGHT = 1
+    DOWN = 2
+    LEFT = 3
 
-		for barrier in barriers:
-			start_row = int(barrier[1])
-			start_col = int(barrier[0])
+    def fill_in_barrier_mask(self, barriers):
+        # mask is 1 where there is a barrier
+        self.barrier_mask = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
 
-			width = int(barrier[2])
-			height = int(barrier[3])
+        num_barrier_cells = 0
 
-			for r in range(start_row, start_row + height):
-				for c in range(start_col, start_col + width):
-					self.barrier_mask[r][c] = -1
+        for barrier in barriers:
+            start_row = int(barrier[1])
+            start_col = int(barrier[0])
 
+            width = int(barrier[2])
+            height = int(barrier[3])
 
-			num_barrier_cells += height*width
+            for r in range(start_row, start_row + height):
+                for c in range(start_col, start_col + width):
+                    self.barrier_mask[r][c] = -1
 
-		return num_barrier_cells
 
-	def __init__(self, barriers, grid_size, num_agents, prey_style, smart_predator):
-		# this is total number of agents (must be even number)
-		# half of these agents will be prey and half predators
-		if num_agents % 2 != 0:
-			raise "Argument Error.  Must have even number of agents"
+            num_barrier_cells += height*width
 
-		self.num_agents = num_agents
+        return num_barrier_cells
 
-		self.prey_style = prey_style
-		self.orig_prey_style = prey_style
-		self.smart_predator = smart_predator
-		self.orig_smart_predator = smart_predator
+    def __init__(self, barriers, grid_size, num_agents, prey_style, smart_predator):
+        # this is total number of agents (must be even number)
+        # half of these agents will be prey and half predators
+        if num_agents % 2 != 0:
+            raise "Argument Error.  Must have even number of agents"
 
-		self.num_prey = self.num_predators = int(self.num_agents/2)
-		self.smart_auto_moves = False
+        self.num_agents = num_agents
 
-		self.grid_size = grid_size
+        self.prey_style = prey_style
+        self.orig_prey_style = prey_style
+        self.smart_predator = smart_predator
+        self.orig_smart_predator = smart_predator
 
-		# mask is -1 where there is a barrier
-		self.num_barrier_cells = self.fill_in_barrier_mask(barriers)
+        self.num_prey = self.num_predators = int(self.num_agents/2)
+        self.smart_auto_moves = False
 
-		# free cells available to be roamed
-		free_cells = (self.grid_size * self.grid_size) - self.num_barrier_cells
-
-		# simple probability calculation
-		self.nS = free_cells * (free_cells - 1)
-		for i in range(2, self.num_agents):
-			self.nS += self.nS * (free_cells - i)
+        self.grid_size = grid_size
 
-		self.nA = 4**self.num_agents
-		self.dumb_prey = False
+        # mask is -1 where there is a barrier
+        self.num_barrier_cells = self.fill_in_barrier_mask(barriers)
 
-		self.action_space = spaces.MultiDiscrete(
-			[(0,4)]*self.num_agents
-		)
+        # free cells available to be roamed
+        free_cells = (self.grid_size * self.grid_size) - self.num_barrier_cells
 
-		self.observation_space = spaces.Discrete(self.nS)
+        # simple probability calculation
+        self.nS = free_cells * (free_cells - 1)
+        for i in range(2, self.num_agents):
+            self.nS += self.nS * (free_cells - i)
 
-		self.random_start = True
-		self.num_fixed_start_configs = 5
-		self.fixed_points = np.zeros([self.num_fixed_start_configs, self.num_agents, 2])
+        self.nA = 4**self.num_agents
+        self.dumb_prey = False
 
-		for j in range(self.num_fixed_start_configs):
-			full_positions = np.copy(self.barrier_mask)
-			for i in range(self.num_agents):
-				(r,c) = self.random_valid_idx(full_positions)
-				self.fixed_points[j, i, :] = [r,c]
-				full_positions[r, c] = 1
-		
-		self._seed()
-		self._reset()
-
-	def quick_burn_in(self):
-		self.smart_predator = True
-		self.prey_style = 'dumb'
-
-	def revert(self):
-		self.smart_predator = self.orig_smart_predator
-		self.prey_style = self.orig_prey_style
-
-	def sub2Linear((r, c)):
-		return r*self.grid_size + c
-
-	def random_idx(self):
-		idx = np.random.random_integers(0, self.grid_size * self.grid_size - 1)
-		row = int(idx / self.grid_size)
-		col = int(idx % self.grid_size)
-
-		return row, col
-
-	def new_location(self, agent_pos, action):
-		# figure out deltas of action
-		deltas = PacmanEnv.ACTION_DELTAS[int(action)]
-
-		new_agent_pos_r = min(max(agent_pos[0] + deltas[0], 0), self.grid_size - 1)
-		new_agent_pos_c = min(max(agent_pos[1] + deltas[1], 0), self.grid_size - 1)
-
-		if(self.barrier_mask[new_agent_pos_r][new_agent_pos_c] == 0):
-			return (new_agent_pos_r, new_agent_pos_c)
-		else:
-			return agent_pos
-
-	def random_valid_idx(self, full_positions=None):
-
-		if full_positions is None:
-			full_positions = np.add(np.add(self.prey_channel, self.predator_channel), self.barrier_mask)
-
-		(row, col) = self.random_idx()
-
-		while full_positions[row][col] != 0:
-			(row, col) = self.random_idx()
-
-		return (row, col)
-
-	def _reset(self):
-		"""Reset the environment.
-
-		Returns
-		-------
-		randomly generated state
-		initial state
-		"""
-		self.num_prey = self.num_predators
-		self.predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
-		self.prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
-
-		fixed_points = self.fixed_points[np.random.randint(self.num_fixed_start_configs)]
-		np.random.shuffle(fixed_points)
-
-		placement_idx = 0
-		# random placement of predators first
-		for i in range(1, self.num_predators + 1):
-			if self.random_start:
-				(r,c) = self.random_valid_idx()
-			else:
-				(r, c) = fixed_points[placement_idx]
-				placement_idx += 1
-			self.predator_channel[int(r)][int(c)] = i
-
-		for i in range(1, self.num_prey + 1):
-			if self.random_start:
-				(r,c) = self.random_valid_idx()
-			else:
-				(r, c) = fixed_points[placement_idx]
-				placement_idx += 1
-			self.prey_channel[int(r)][int(c)] = 1
-
-
-		self.random_start = False
-
-		return self.barrier_mask, self.prey_channel, self.predator_channel
-
-	
-	def _seed(self, seed=None):
-		self.np_random, seed = seeding.np_random(seed)
-		return [seed]
-
-	def agent_state(self, channel, target_idx):
-		for r in range(self.grid_size):
-			for c in range(self.grid_size):
-				val = channel[r][c]
-				if val == target_idx:
-					return (r, c)
-
-	def predator_state(self, target_idx):
-		for r in range(self.grid_size):
-			for c in range(self.grid_size):
-				val = self.predator_channel[r][c]
-				if val == target_idx:
-					return (r, c)
-	
-	def _render(self, mode='human', close=False):
-		for r in range(self.grid_size):
-			for c in range(self.grid_size):
-				if self.barrier_mask[r][c] == -1:
-					print(PacmanEnv.MARKS['barrier'], end=' ')
-				elif self.prey_channel[r][c] != 0:
-					print(PacmanEnv.MARKS['prey'], end=' ')
-				elif self.predator_channel[r][c] != 0:
-					print(PacmanEnv.MARKS['predator'], end=' ')
-				else:
-					print(PacmanEnv.MARKS['empty'], end=' ')
-			print ("")
-
-		return
-
-	def find_prey_indices(self):
-		indices = []
-		for r in range(self.grid_size):
-			for c in range(self.grid_size):
-				if self.prey_channel[r][c] == 1:
-					indices.append((r,c))
-		return indices
-
-	def find_predator_indices(self):
-		indices = []
-		for i in range(self.num_predators):
-			indices.append(self.predator_state(i + 1))
-		return indices
-
-	def resolve_conflicts(self, actions, curr_positions, channel):
-		next_positions = []
-		didnt_move = []
-
-		for i in range(len(curr_positions)):
-			action = actions[i]
-			curr_pos = curr_positions[i]
-
-			next_pos = self.new_location(curr_pos, action)
-			didnt_move.append(next_pos == curr_pos)
-			next_positions.append(next_pos)
-
-		pos_counters = {}
-
-		for i in range(len(next_positions)):
-			next_pos = next_positions[i]
-
-			if next_pos not in pos_counters:
-				pos_counters[next_pos] = [i]
-			else:
-				listt = pos_counters[next_pos]
-				listt.append(i)
-
-		for pos in pos_counters:
-			if len(pos_counters[pos]) > 1:
-				for idx in pos_counters[pos]:
-					if not didnt_move[idx]:
-						next_positions[idx] = curr_positions[idx]
-
-		return next_positions
-
-
-	def _step(self, action):
-		action_str = str("".join(action))
-		actions = np.zeros(self.num_agents)
-
-		curr_predator_pos = self.find_predator_indices()
-		curr_prey_pos = self.find_prey_indices()
-
-		if len(action_str) == 0:
-			actions[:self.num_predators] = smart_move(self.barrier_mask,\
-				curr_predator_pos, curr_prey_pos, 'closer')
-		else:
-			i = 0
-			for action in action_str:
-				action = action_str[i]
-				try:
-					action = int(action)
-				except ValueError:
-					if self.smart_predator:
-						action = smart_move(self.barrier_mask,\
-							[curr_predator_pos[i]], curr_prey_pos, 'closer')[0]
-					else:
-						action = np.random.randint(4)
-				actions[i] = action
-				i += 1
-
-			if i + 1 <= self.num_predators:
-				raise Exception("You must either supply all actions for predator or none (smart predator).")
-
-
-		if self.prey_style == 'smart' or self.prey_style == 'dumb':
-			direction = 'further' if self.prey_style == 'smart' else 'closer'
-			smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, direction)
-			if np.shape(smart_actions)[0] == 0:
-				for i in range(self.num_predators, self.num_agents):
-					actions[i] = np.random.randint(4)
-			else:
-				actions[self.num_predators: self.num_agents] = smart_actions
-		else:
-			for i in range(self.num_predators, self.num_agents):
-				actions[i] = np.random.randint(4)
-
-		new_predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
-		new_prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
-
-		reward = ''
-
-		next_positions = self.resolve_conflicts(actions[0:self.num_predators], curr_predator_pos, 'predator')
-
-		for i in range(len(next_positions)):
-			r,c = curr_predator_pos[i]
-			new_r, new_c = next_positions[i]
-			new_predator_channel[new_r][new_c] = self.predator_channel[r][c]
-
-		next_positions = curr_prey_pos
-		
-		next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
-
-		for i in range(len(next_positions)):
-			r,c = curr_prey_pos[i]
-			new_r, new_c = next_positions[i]
-
-			predator_mark_old = new_predator_channel[r][c]
-			predator_mark_new = new_predator_channel[new_r][new_c]
-			prev_predator_mark = self.predator_channel[new_r][new_c]
-
-			swapped_places = predator_mark_old > 0 and prev_predator_mark > 0 and predator_mark_old == prev_predator_mark
-
-			landed_same_place = predator_mark_new > 0
-
-			if swapped_places:
-				self.num_prey -= 1
-
-				reward += str(predator_mark_old)
-			elif landed_same_place:
-				self.num_prey -= 1
-				reward += str(predator_mark_new)
-			else:
-				new_prey_channel[new_r][new_c] = self.prey_channel[r][c]
-
-		self.predator_channel = new_predator_channel
-		self.prey_channel = new_prey_channel
-
-		is_terminal = self.num_prey == 0
-
-		self.latest_first_pred_action = int(actions[0])
-
-		return [self.barrier_mask,  self.prey_channel, self.predator_channel], reward, is_terminal, 'no debug information provided'
+        self.action_space = spaces.MultiDiscrete(
+            [(0,3)]*self.num_agents
+        )
+
+        self.observation_space = spaces.Discrete(self.nS)
+
+        self.random_start = True
+        self.num_fixed_start_configs = 5
+        self.fixed_points = np.zeros([self.num_fixed_start_configs, self.num_agents, 2])
+
+        for j in range(self.num_fixed_start_configs):
+            full_positions = np.copy(self.barrier_mask)
+            for i in range(self.num_agents):
+                (r,c) = self.random_valid_idx(full_positions)
+                self.fixed_points[j, i, :] = [r,c]
+                full_positions[r, c] = 1
+
+        self._seed()
+        self._reset()
+
+    def quick_burn_in(self):
+        self.smart_predator = True
+        self.prey_style = 'dumb'
+
+    def revert(self):
+        self.smart_predator = self.orig_smart_predator
+        self.prey_style = self.orig_prey_style
+
+    def sub2Linear((r, c)):
+        return r*self.grid_size + c
+
+    def random_idx(self):
+        idx = np.random.random_integers(0, self.grid_size * self.grid_size - 1)
+        row = int(idx / self.grid_size)
+        col = int(idx % self.grid_size)
+
+        return row, col
+
+    def new_location(self, agent_pos, action):
+        # figure out deltas of action
+        deltas = PacmanEnv.ACTION_DELTAS[int(action)]
+
+        new_agent_pos_r = min(max(agent_pos[0] + deltas[0], 0), self.grid_size - 1)
+        new_agent_pos_c = min(max(agent_pos[1] + deltas[1], 0), self.grid_size - 1)
+
+        if(self.barrier_mask[new_agent_pos_r][new_agent_pos_c] == 0):
+            return (new_agent_pos_r, new_agent_pos_c)
+        else:
+            return agent_pos
+
+    def random_valid_idx(self, full_positions=None):
+
+        if full_positions is None:
+            full_positions = np.add(np.add(self.prey_channel, self.predator_channel), self.barrier_mask)
+
+        (row, col) = self.random_idx()
+
+        while full_positions[row][col] != 0:
+            (row, col) = self.random_idx()
+
+        return (row, col)
+
+    def _reset(self):
+        """Reset the environment.
+
+        Returns
+        -------
+        randomly generated state
+        initial state
+        """
+        self.num_prey = self.num_predators
+        self.predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
+        self.prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
+
+        fixed_points = self.fixed_points[np.random.randint(self.num_fixed_start_configs)]
+        np.random.shuffle(fixed_points)
+
+        placement_idx = 0
+        # random placement of predators first
+        for i in range(1, self.num_predators + 1):
+            if self.random_start:
+                (r,c) = self.random_valid_idx()
+            else:
+                (r, c) = fixed_points[placement_idx]
+                placement_idx += 1
+            self.predator_channel[int(r)][int(c)] = i
+
+        for i in range(1, self.num_prey + 1):
+            if self.random_start:
+                (r,c) = self.random_valid_idx()
+            else:
+                (r, c) = fixed_points[placement_idx]
+                placement_idx += 1
+            self.prey_channel[int(r)][int(c)] = 1
+
+
+        self.random_start = False
+
+        return self.barrier_mask, self.prey_channel, self.predator_channel
+
+
+    def _seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+    def agent_state(self, channel, target_idx):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                val = channel[r][c]
+                if val == target_idx:
+                    return (r, c)
+
+    def predator_state(self, target_idx):
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                val = self.predator_channel[r][c]
+                if val == target_idx:
+                    return (r, c)
+
+    def render(self,iter, mode='human', close=False):
+        image=np.zeros((self.grid_size,self.grid_size))
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                if self.barrier_mask[r][c] == -1:
+                    image[r][c]=0.0
+                elif self.prey_channel[r][c] != 0:
+                    image[r][c]=0.5
+                elif self.predator_channel[r][c] != 0:
+                    image[r][c]=0.2
+                else:
+                    image[r][c]=1.0
+
+
+
+        basewidth=1000
+        wpercent = (basewidth / self.grid_size)
+        hsize = int((self.grid_size) * float(wpercent))
+        #print (barrier)
+        image = Image.fromarray(np.uint8(cm.gist_earth(image)*255))
+        iterstr='00'+str(iter)
+        iterstr=iterstr[len(iterstr)-3:len(iterstr)]
+        image=image.resize((basewidth, hsize))
+        enhancer = ImageEnhance.Sharpness(image)
+        factor = 4.0
+        image=enhancer.enhance(factor)
+        image.save('images/env'+iterstr+'.png')
+
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                if self.barrier_mask[r][c] == -1:
+                    print(PacmanEnv.MARKS['barrier'], end=' ')
+                elif self.prey_channel[r][c] != 0:
+                    print(PacmanEnv.MARKS['prey'], end=' ')
+                elif self.predator_channel[r][c] != 0:
+                    print(PacmanEnv.MARKS['predator'], end=' ')
+                else:
+                    print(PacmanEnv.MARKS['empty'], end=' ')
+            print ("")
+        print ("\n")
+        return
+
+    def find_prey_indices(self):
+        indices = []
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
+                if self.prey_channel[r][c] == 1:
+                    indices.append((r,c))
+        return indices
+
+    def find_predator_indices(self):
+        indices = []
+        for i in range(self.num_predators):
+            indices.append(self.predator_state(i + 1))
+        return indices
+
+    def resolve_conflicts(self, actions, curr_positions, channel):
+        next_positions = []
+        didnt_move = []
+
+        for i in range(len(curr_positions)):
+            action = actions[i]
+            curr_pos = curr_positions[i]
+
+            next_pos = self.new_location(curr_pos, action)
+            didnt_move.append(next_pos == curr_pos)
+            next_positions.append(next_pos)
+
+        pos_counters = {}
+
+        for i in range(len(next_positions)):
+            next_pos = next_positions[i]
+
+            if next_pos not in pos_counters:
+                pos_counters[next_pos] = [i]
+            else:
+                listt = pos_counters[next_pos]
+                listt.append(i)
+
+        for pos in pos_counters:
+            if len(pos_counters[pos]) > 1:
+                for idx in pos_counters[pos]:
+                    if not didnt_move[idx]:
+                        next_positions[idx] = curr_positions[idx]
+
+        return next_positions
+
+
+    def _step(self, action):
+        action_str = action
+        #print (action_str)
+        actions = np.zeros(self.num_agents)
+
+        curr_predator_pos = self.find_predator_indices()
+        curr_prey_pos = self.find_prey_indices()
+
+        if len(action_str) == 0:
+            actions[:self.num_predators] = smart_move(self.barrier_mask,\
+                curr_predator_pos, curr_prey_pos, 'closer')
+        else:
+            i = 0
+            for action in action_str:
+                action = action_str[i]
+                #print (action)
+                try:
+                    action = int(action)
+                except ValueError:
+                    if self.smart_predator:
+                        action = smart_move(self.barrier_mask,\
+                            [curr_predator_pos[i]], curr_prey_pos, 'closer')[0]
+                    else:
+                        action = np.random.randint(4)
+                #print (action)
+                actions[i] = action
+                i += 1
+
+            if i + 1 <= self.num_predators:
+                raise Exception("You must either supply all actions for predator or none (smart predator).")
+
+
+        if self.prey_style == 'smart' or self.prey_style == 'dumb':
+            direction = 'further' if self.prey_style == 'smart' else 'closer'
+            smart_actions = smart_move(self.barrier_mask, curr_prey_pos, curr_predator_pos, direction)
+            if np.shape(smart_actions)[0] == 0:
+                for i in range(self.num_predators, self.num_agents):
+                    actions[i] = np.random.randint(4)
+            else:
+                actions[self.num_predators: self.num_agents] = smart_actions
+        else:
+            for i in range(self.num_predators, self.num_agents):
+                actions[i] = np.random.randint(4)
+
+        new_predator_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
+        new_prey_channel = [[0]*self.grid_size for _ in xrange(self.grid_size) ]
+
+        reward = ''
+
+        next_positions = self.resolve_conflicts(actions[0:self.num_predators], curr_predator_pos, 'predator')
+
+        for i in range(len(next_positions)):
+            r,c = curr_predator_pos[i]
+            new_r, new_c = next_positions[i]
+            new_predator_channel[new_r][new_c] = self.predator_channel[r][c]
+
+        next_positions = curr_prey_pos
+
+        next_positions = self.resolve_conflicts(actions[self.num_predators:], curr_prey_pos, 'prey')
+
+        for i in range(len(next_positions)):
+            r,c = curr_prey_pos[i]
+            new_r, new_c = next_positions[i]
+
+            predator_mark_old = new_predator_channel[r][c]
+            predator_mark_new = new_predator_channel[new_r][new_c]
+            prev_predator_mark = self.predator_channel[new_r][new_c]
+
+            swapped_places = predator_mark_old > 0 and prev_predator_mark > 0 and predator_mark_old == prev_predator_mark
+
+            landed_same_place = predator_mark_new > 0
+
+            if swapped_places:
+                self.num_prey -= 1
+
+                reward += str(predator_mark_old)
+            elif landed_same_place:
+                self.num_prey -= 1
+                reward += str(predator_mark_new)
+            else:
+                new_prey_channel[new_r][new_c] = self.prey_channel[r][c]
+
+        self.predator_channel = new_predator_channel
+        self.prey_channel = new_prey_channel
+
+        is_terminal = self.num_prey == 0
+
+        self.latest_first_pred_action = int(actions[0])
+
+        return [self.barrier_mask,  self.prey_channel, self.predator_channel], reward, is_terminal, 'no debug information provided'
 
 
 basic_barriers = [ (2, 2, 3, 3) ]
-advanced_barrier = [ (2, 1, 7, 4), (0, 6, 8, 3) ]
+advanced_barrier = [ (2, 1, 3, 1), (0, 3, 3, 1) ]
 
 register(
-	id='PacmanEnv-v0',
-	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False})
+    id='PacmanEnv-v0',
+    entry_point='envs.pacman_envs:PacmanEnv',
+    kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False})
 
 register(
-	id='PacmanEnvSmartPredators-v0',
-	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': True})
+    id='PacmanEnvSmartPredators-v0',
+    entry_point='envs.pacman_envs:PacmanEnv',
+    kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'random', 'smart_predator': True})
 
 register(
-	id='PacmanEnvMini1-v0',
-	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': [], 'grid_size':3, 'num_agents':2, 'prey_style': 'random', 'smart_predator': False}
+    id='PacmanEnvMini1-v0',
+    entry_point='envs.pacman_envs:PacmanEnv',
+    kwargs={'barriers': [], 'grid_size':3, 'num_agents':2, 'prey_style': 'random', 'smart_predator': False}
 )
 
 register(
-	id='PacmanEnvMini2-v0',
-	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False}
+    id='PacmanEnvMini2-v0',
+    entry_point='envs.pacman_envs:PacmanEnv',
+    kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False}
 )
 
 register(
-	id='PacmanEnvMini2-SmartPrey-v0',
-	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': basic_barriers, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
+    id='PacmanEnvMini2-SmartPrey-v0',
+    entry_point='envs.pacman_envs:PacmanEnv',
+    kwargs={'barriers': advanced_barrier, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
 )
