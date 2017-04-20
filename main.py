@@ -44,6 +44,8 @@ def main():
 
     parser.add_argument('--private', default=False, type=bool, help='Whether or not predators have access to each other\'s q-values')
 
+    parser.add_argument('--should_move_prob', default=0.9, type=float)
+
     parser.add_argument('--solo_train', default=False, type=bool, help='Whether to train models one at a time or simultaneously.')
     parser.add_argument('--agent_dissemination_freq', default=1e4, type=int, help='If solo training, how frequently to copy trained weights to other untrained agents.')
     parser.add_argument('--network_name', default='deep', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')

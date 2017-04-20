@@ -267,6 +267,27 @@ class PacmanEnv(Env):
 
 		return next_positions
 
+	def movable_actions(self):
+		all_movable_actions = []
+
+		predator_indices = self.find_predator_indices()
+
+		for i in range(self.num_predators):
+			movable_actions = []
+
+			predator_pos = predator_indices[i]
+
+			for j in range(len(self.ACTION_DELTAS)):
+				new_location = self.new_location(predator_pos, j)
+
+				if predator_pos != new_location:
+					movable_actions.append(j)
+
+			all_movable_actions.append(movable_actions)
+
+		return all_movable_actions
+
+
 	def _step(self, action):
 		action_str = str("".join(action))
 		actions = np.zeros(self.num_agents)
@@ -394,3 +415,5 @@ register(
 	entry_point='envs.pacman_envs:PacmanEnv',
 	kwargs={'barriers': advanced_small_barrier, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
 )
+
+

@@ -35,6 +35,7 @@ class IndependentDQN(MultiAgent):
         self.full_info = args.full_info
         self.max_test_episode_length = args.max_test_episode_length
         self.agent_dissemination_freq = args.agent_dissemination_freq
+        self.should_move_prob = args.should_move_prob
         self.algorithm = args.algorithm
         self.optimizer = optimizer
         self.eval_freq = args.eval_freq
@@ -97,8 +98,25 @@ class IndependentDQN(MultiAgent):
         is_random = epsilon > threshold
 
         if is_random:
-            action1 = np.random.randint(4)
-            action2 = np.random.randint(4)
+            should_move = np.random.rand() < self.should_move_prob
+
+            if should_move:
+                movable_actions = self.env.movable_actions()
+
+                movable_actions1 = movable_actions[0]
+                num_movable_actions1 = len(movable_actions1)
+
+                movable_actions2 = movable_actions[1]
+                num_movable_actions2 = len(movable_actions2)
+                
+                action1_idx = np.random.randint(num_movable_actions1)
+                action2_idx = np.random.randint(num_movable_actions2)
+
+                action1 = movable_actions1[action1_idx]
+                action2 = movable_actions2[action2_idx]
+            else:
+                action1 = np.random.randint(4)
+                action2 = np.random.randint(4)
             return [action1, action2]
 
         payoffs1 = np.reshape(q_values1, [4, 4])
