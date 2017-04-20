@@ -21,16 +21,29 @@ class HistoryPreprocessor(Preprocessor):
 
     """
 
-    def __init__(self, frame_size, model_name, num_pred, coop, history_length=1):
+    def __init__(self, frame_size, model_name, num_pred, coop, is_amazon, history_length=1):
         self.history_length = history_length
         self.model_name = model_name
         self.coop = coop
         self.num_pred = num_pred
         self.frame_size = frame_size
         self.model_name = model_name
+
+        self.is_amazon = is_amazon
         self.reset()
 
     def add_state(self, state):
+        if self.is_amazon:
+            return self.add_amazon_state(state)
+        else:
+            return self.add_pacman_state(state)
+
+    def add_amazon_state(self, state):
+        state = np.array(state)
+        self.frames = state
+        return self.frames
+
+    def add_pacman_state(self, state):
         state = np.array(state)
         prey_channel = state[1][:][:]
         prey_idxs = np.nonzero(prey_channel)
@@ -56,6 +69,54 @@ class HistoryPreprocessor(Preprocessor):
         return rewards
 
     def get_state(self, id=None):
+        if self.is_amazon:
+            return self.get_amazon_state(id)
+        else:
+            return self.get_pacman_state(id)
+
+    def get_amazon_state(self, id):
+        full_frames = np.zeros([self.num_pred, self.frame_size[0], self.frame_size[1]])
+        agent_locs = np.nonzero(self.frames > 0)
+
+        nz_ids = self.frames[agent_locs]
+
+        def is_odd(num):
+            return not num % 2 == 0
+
+        for i in range(self.num_pred):
+            my_frame = np.copy(self.frames)
+
+            predator_val = int(nz_ids[i])
+
+            my_loc = agent_locs[i]
+
+            my_r = agent_locs[0][i]
+            my_c = agent_locs[1][i]
+
+            other_idx = 1 if i == 0 else 0
+
+            other_r = agent_locs[0][other_idx]
+            other_c = agent_locs[1][other_idx]
+
+            if is_odd(predator_val):
+                predator_id = (predator_val + 1)/2
+            else:
+                predator_id = predator_val/2
+
+            if predator_id == 1:
+                my_frame[my_r, my_c] += 2 #downgrade other agent
+                my_frame[other_r, other_c] -= 2
+
+            full_frames[predator_id - 1, :, :] = my_frame
+
+        full_frames = np.divide(full_frames, 4.0)
+
+        if not id is None:
+            return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)
+
+        return np.expand_dims(np.expand_dims(full_frames, axis=-1), axis=1)
+
+    def get_pacman_state(self, id):
         # if id is passed only create state for that particular agent
         # break predator state in last channel into self and others (normalize all to 1s)
         full_frames = np.zeros([self.num_pred, self.frame_size[0], self.frame_size[1]])

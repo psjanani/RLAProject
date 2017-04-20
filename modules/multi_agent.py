@@ -23,7 +23,11 @@ class IndependentDQN(MultiAgent):
     # The buffers are different for each DQN, history Preprocessor is the same. During the training,
     # the interaction with the environment is coordinated.
     def __init__(self, number_agents, model_name, args, optimizer, loss):
-        self.number_pred = number_agents / 2
+        if 'Pacman' in args.env:
+            self.number_pred = number_agents / 2
+        else:
+            self.number_pred = number_agents
+
         self.pred_model = {}
         self.coop = args.coop
 
@@ -75,7 +79,7 @@ class IndependentDQN(MultiAgent):
         return model
 
     def model_init(self, args):
-        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.history)
+        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, 'Amazon' in args.env, args.history)
 
     def select_actions(self, q_values1, q_values2, num_iters):
         if self.full_info:
@@ -89,11 +93,12 @@ class IndependentDQN(MultiAgent):
 
         return A
 
-    def select_joint_actions(self, q_values1, q_values2, num_iters):
+    def select_joint_actions(self, q_values1, q_values2, num_iters, epsilon=None):
         threshold = np.random.rand()
 
-        perc = min(num_iters / self.num_decay_steps, 1.0)
-        epsilon = perc * self.end_epsilon + ( 1.0 - perc) * self.initial_epsilon
+        if epsilon is None:
+            perc = min(num_iters / self.num_decay_steps, 1.0)
+            epsilon = perc * self.end_epsilon + ( 1.0 - perc) * self.initial_epsilon
 
         is_random = epsilon > threshold
 
@@ -214,8 +219,6 @@ class IndependentDQN(MultiAgent):
                     if i > 0 and self.args.solo_train:
                         my_A = int(A[i]) * 4 + int(A[0])
 
-                        # print my_A
-
                         self.pred_model[0].buffer.append(S[i], my_A, R[i], S_prime[i], is_terminal)
 
                         if num_iters % self.agent_dissemination_freq == 0:
@@ -293,7 +296,7 @@ class IndependentDQN(MultiAgent):
                 for i in range(self.number_pred):
                     q_values.append(self.pred_model[i].calc_q_values(self.pred_model[i].network, S[i]))
 
-                A = self.select_actions(q_values[0], q_values[1], 10000000)
+                A = self.select_actions(q_values[0], q_values[1], 1, 0.05)
 
                 for i in range(len(A)):
                     A[i] = str(A[i])
