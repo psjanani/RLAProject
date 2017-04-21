@@ -1,4 +1,4 @@
-from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda
+from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda, Dropout
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.core import RepeatVector
 from keras.models import Model
@@ -110,8 +110,11 @@ class DeepQModel(Models):
             merged_action = merge(inputs=[rep_value, advan_merge], mode='sum', name='merged_action')
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
         else:
-            dense_layer1 = Dense(64, activation='sigmoid')(flatten)
-            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense_layer1)
+            dense_layer1 = Dense(512, activation='tanh')(flatten)
+            dropout1 = Dropout(0.5)(dense_layer1)
+            dense_layer2 = Dense(256, activation='tanh')(dropout1)
+            dropout2 = Dropout(0.5)(dense_layer2)
+            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dropout2)
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 
         model = Model(input=[state_input, action_mask], output=masked_output)

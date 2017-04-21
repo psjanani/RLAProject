@@ -11,6 +11,7 @@ from modules.utils import argrender
 from modules.models import *
 from modules.multi_agent import *
 import envs.pacman_envs
+import envs.amazon_envs
 from os.path import expanduser
 
 def make_assertions(args):
@@ -25,27 +26,28 @@ def main():
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
+    parser.add_argument('--decay', default=0.0, type=float, help="Learning Rate decay")
     parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
-    parser.add_argument('--env', default='PacmanEnv-v0', help='Env name')
-    parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
-    parser.add_argument('--eval_num', default=1000, type=int, help='Number of episodes to evaluate on.')
+    parser.add_argument('--env', default='Amazon-v0', help='Env name')
+    parser.add_argument('--eval_freq', default=1e3, type=int, help='Number frames in between evaluations')
+    parser.add_argument('--eval_num', default=200, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
-    parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
+    parser.add_argument('--gamma', default=0.9, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
     parser.add_argument('--initial_epsilon', default=1.0, type=float, help='Initial epsilon pre-decay')
     parser.add_argument('--loss', default='mean_huber', help='mean_huber, huber, mae, or mse.')
     parser.add_argument('--lr', default=0.00025, type=float, help='(initial) learning rate')
-    parser.add_argument('--max_test_episode_length', default=1500, type=int, help='Max episode length for testing.')
-    parser.add_argument('--max_episode_length', default=1000, type=int, help='Max episode length (for training, not eval).')
+    parser.add_argument('--max_test_episode_length', default=30, type=int, help='Max episode length for testing.')
+    parser.add_argument('--max_episode_length', default=25, type=int, help='Max episode length (for training, not eval).')
     parser.add_argument('--memory', default=1e6, type=int, help='size of buffer for experience replay')
-    parser.add_argument('--momentum', default=0.95, type=float)
+    parser.add_argument('--momentum', default=0.9, type=float)
     parser.add_argument('--solo_train', default=True, type=bool, help='Whether to train models one at a time or simultaneously.')
     parser.add_argument('--agent_dissemination_freq', default=1e4, type=int, help='If solo training, how frequently to copy trained weights to other untrained agents.')
     parser.add_argument('--network_name', default='deep', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
-    parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
+    parser.add_argument('--num_burn_in', default=1e4, type=int, help='Buffer size pre-training.')
     parser.add_argument('--num_decay_steps', default=1e6, type=int, help='Epsilon policy decay length')
-    parser.add_argument('--num_iterations', default=2e6, type=int, help='Number frames visited for training.')
+    parser.add_argument('--num_iterations', default=1e6, type=int, help='Number frames visited for training.')
     parser.add_argument('--smart_burn_in', default=False, type=bool)
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
@@ -76,6 +78,8 @@ def main():
         args.num_actions = 4
     elif 'Warehouse' in args.env:
         args.num_actions = 6
+    elif 'Amazon' in args.env:
+        args.num_actions = 4
     else:
         args.num_actions = env.action_space.n
         ## not sure
@@ -100,7 +104,7 @@ def main():
     elif args.optimizer == 'sgd':
         optimizer = SGD(lr=args.lr, momentum=args.momentum)
     elif args.optimizer == 'adam':
-        optimizer = Adam(lr=args.lr)
+        optimizer = Adam(lr=args.lr, decay=args.decay)
     elif args.optimizer == 'nadam':
         optimizer = Nadam(lr=args.lr)
     else:

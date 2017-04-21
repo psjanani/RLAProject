@@ -43,7 +43,11 @@ class DQNAgent:
 		self.network = network
 		self.gamma = args.gamma
 		self.network_name = args.network_name
-		self.num_pred = args.num_agents / 2
+		self.num_pred = args.num_agents
+
+		if 'Pacman' in args.env:
+			self.num_pred /= 2
+
 		self.memory = args.memory
 		self.num_actions = int(args.num_actions)
 		self.target_update_freq = args.target_update_freq
@@ -69,6 +73,9 @@ class DQNAgent:
 			self.target = target_network
 		else:
 			raise Exception("This should not happen.  Check boolean instance variables.")
+
+	def save(self, path):
+		self.network.save(path)
 
 	def calc_q_values(self, model, state, expand_dims=False):
 		if expand_dims:

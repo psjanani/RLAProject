@@ -23,7 +23,11 @@ class IndependentDQN(MultiAgent):
     # The buffers are different for each DQN, history Preprocessor is the same. During the training,
     # the interaction with the environment is coordinated.
     def __init__(self, number_agents, model_name, args, optimizer, loss):
-        self.number_pred = number_agents / 2
+        self.number_pred = number_agents 
+
+        if 'Pacman' in args.env:
+            self.number_pred /= 2
+
         self.pred_model = {}
         self.coop = args.coop
         self.gamma = args.gamma
@@ -67,7 +71,7 @@ class IndependentDQN(MultiAgent):
         return model
 
     def model_init(self, args):
-        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, args.history)
+        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, 'Amazon' in args.env, args.history)
 
     def fit(self, num_iterations, eval_num, max_episode_length=None):
         best_reward = -float('inf')
@@ -95,6 +99,10 @@ class IndependentDQN(MultiAgent):
                     action_string += str(A[i])
 
                 R, is_terminal = self.step(action_string)
+
+                if(R[0] > 0 or R[1] > 0):
+                    print(R)
+
                 S_prime = self.preprocessor.get_state()
 
                 if num_iters % self.eval_freq == 0:
@@ -161,7 +169,7 @@ class IndependentDQN(MultiAgent):
         rewards = []
 
         # evaluation always uses greedy policy
-        greedy_policy = GreedyEpsilonPolicy(0.0)
+        greedy_policy = GreedyEpsilonPolicy(0.1)
         total_steps = 0
 
         for i in range(num_episodes):
@@ -196,11 +204,15 @@ class IndependentDQN(MultiAgent):
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
 
-                # if to_render and i == 0:
-                    # self.env.render()
-                    # print('\n')
-                    # print q_values
-                    # print('\n')
+                if to_render and i == 0:
+                    self.env.render()
+                    print('\n')
+                    print q_values
+                    print('\n')
+
+                    if len(R) > 0:
+                        print(R)
+                        print('\n')
 
                 if self.debug_mode:
                     save_states_as_images(S)
