@@ -81,14 +81,14 @@ class IndependentDQN(MultiAgent):
     def model_init(self, args):
         self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, 'Amazon' in args.env, args.history)
 
-    def select_actions(self, q_values1, q_values2, num_iters):
+    def select_actions(self, q_values1, q_values2, num_iters, epsilon=None):
         if self.full_info:
-            A = self.select_joint_actions(q_values1, q_values2, num_iters)
+            A = self.select_joint_actions(q_values1, q_values2, num_iters, epsilon)
             for i in range(len(A)):
                 A[i] = str(A[i])
         else:
-            A1 = self.select_joint_actions(q_values1, q_values1, num_iters)
-            A2 = self.select_joint_actions(q_values2, q_values2, num_iters)
+            A1 = self.select_joint_actions(q_values1, q_values1, num_iters, epsilon)
+            A2 = self.select_joint_actions(q_values2, q_values2, num_iters, epsilon)
             A = [ str(A1[0]) , str(A2[0]) ]
 
         return A

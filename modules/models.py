@@ -28,7 +28,6 @@ class LinearModel(Models):
         model = Model(input=[state_input, action_mask], output=masked_output)
         return model
 
-
 class StanfordModel(Models):
 
     def __init__(self, input_shape, num_actions, model_name="stanford"):
