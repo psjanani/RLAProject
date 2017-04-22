@@ -32,7 +32,7 @@ def main():
     parser.add_argument('--eval_freq', default=1e3, type=int, help='Number frames in between evaluations')
     parser.add_argument('--eval_num', default=200, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
-    parser.add_argument('--gamma', default=0.9, type=float, help='discount factor (0, 1)')
+    parser.add_argument('--gamma', default=0.99, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
     parser.add_argument('--initial_epsilon', default=1.0, type=float, help='Initial epsilon pre-decay')
     parser.add_argument('--loss', default='mean_huber', help='mean_huber, huber, mae, or mse.')

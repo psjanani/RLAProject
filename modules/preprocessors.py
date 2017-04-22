@@ -145,7 +145,6 @@ class HistoryPreprocessor(Preprocessor):
             full_frames[predator_id - 1, :, :] = my_frame
 
         full_frames += 2
-        
         full_frames = np.divide(full_frames, 4)
 
         if self.model_name == 'linear':

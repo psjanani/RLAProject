@@ -100,7 +100,7 @@ class IndependentDQN(MultiAgent):
 
                 R, is_terminal = self.step(action_string)
 
-                if(R[0] > 0 or R[1] > 0):
+                if(sum(R) != 0):
                     print(R)
 
                 S_prime = self.preprocessor.get_state()
