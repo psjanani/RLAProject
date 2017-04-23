@@ -17,17 +17,21 @@ class LinearModel(Models):
         self.model_name = model_name
 
     def create_model(self):
-        state_input = Input(shape=(self.input_shape[0] * self.input_shape[1],), name='state_input')
-        action_mask = Input(shape=(self.num_actions,), name='action_mask')
+        state_input = Input(shape=(8,), name='state_input')
+        action_mask = Input(shape=(4,), name='action_mask')
 
-        dense1 = Dense(128, activation='sigmoid')(state_input)
-        dense2 = Dense(64, activation='sigmoid')(dense1)
+        dense1 = Dense(128, activation='relu')(state_input)
+        dropout1 = Dropout(0.5)(dense1)
+        dense2 = Dense(128, activation='relu')(dropout1)
+        dropout2 = Dropout(0.5)(dense2)
+        dense3 = Dense(128, activation='relu')(dropout2)
+        dropout3 = Dropout(0.5)(dense3)
 
-        action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense2)
+        action_output = Dense(self.num_actions, activation='linear', name='action_output')(dropout3)
         masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
         model = Model(input=[state_input, action_mask], output=masked_output)
-        return model
 
+        return model
 
 class StanfordModel(Models):
 

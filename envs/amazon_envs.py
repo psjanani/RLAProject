@@ -24,9 +24,8 @@ class AmazonEnv(Env):
     """
     metadata = {'render.modes': ['human']}
 
-    DELIVERY_REWARD = 1000
-    CONFLICT_REWARD = 0
-    PICKUP_REWARD = 0
+    DELIVERY_REWARD = 10
+    PICKUP_REWARD = 1
 
     ACTION_DELTAS = [
         [-1, 0],
@@ -42,16 +41,19 @@ class AmazonEnv(Env):
 
     BOX_DROPOFF_MARK = -1
 
-    def __init__(self, grid_size, num_agents, total_boxes):
+    def __init__(self, grid_size, num_agents, total_boxes, single_train):
         self.nS = grid_size * grid_size
         self.nA = 4**(num_agents)
         self.action_space = spaces.MultiDiscrete([(0,3)] * num_agents)
         self.observation_space = spaces.Discrete(self.nS)
-        self.grid_size=grid_size
+        self.single_train = single_train
+        self.grid_size = grid_size
         self.num_agents = num_agents
-        self.box_delivery_pt=grid_size * grid_size - 1
-        self.box_pickup_pt=0
-        self.total_boxes=total_boxes
+        self.box_delivery_pt = (grid_size * grid_size) //2
+
+        self.shelves = np.array([ 9, 10, 11, 37, 38, 39 ])
+
+        self.total_boxes = total_boxes
         self.P = dict()
         self._seed()
         self._reset()
@@ -62,22 +64,23 @@ class AmazonEnv(Env):
 
         return (row, col)
 
+    def random_box_idx(self):
+        idx = np.random.random_integers(0, len(self.shelves) - 1)
+        return self.shelves[idx]
+
     def random_idx(self):
         idx = np.random.random_integers(0, self.grid_size * self.grid_size - 1)
-        while idx==self.box_delivery_pt or idx==self.box_pickup_pt:
+        while idx==self.box_delivery_pt or np.any(self.shelves == idx):
             idx = np.random.random_integers(0, self.grid_size * self.grid_size - 1)
-            #print(idx)
         row = int(idx / self.grid_size)
         col = int(idx % self.grid_size)
-        #print (row,col)
         return row, col
-
 
     def linear_insert(self, obj, linear_idx, val):
         (row, col) = self.linear2sub(linear_idx)
         self[obj][row][col] = val
 
-    def sub2Linear((r, c)):
+    def sub2linear(self, (r, c)):
         return r*self.grid_size + c
 
     def agent_state(self, target_idx):
@@ -86,6 +89,12 @@ class AmazonEnv(Env):
                 val = self.agent_channel[r][c]
                 if val == 2*target_idx or val==2*target_idx-1:
                     return (r, c)
+
+    def myrange(self):
+        return 1 if self.single_train else self.num_agents
+
+    def box_in_transit(self):
+        return not np.any(self.s < AmazonEnv.BOX_DROPOFF_MARK)
 
     def _reset(self):
         """Reset the environment.
@@ -103,10 +112,9 @@ class AmazonEnv(Env):
         #for each agent, it will have an even number with box and odd without,i.e. 2i and 2i-1
         self.agent_channel[int(r)][int(c)] = 2
 
-        for i in range(1, self.num_agents):
+        for i in range(1, self.myrange()):
             (r, c) = self.random_idx()
-            #print(r, c)
-            #print(self.agent_channel[int(r)][int(c)])
+
             while self.agent_channel[int(r)][int(c)] < 2*i + 1:
                 #This while loop checks for places which have been occupied by previous agents
                 if self.agent_channel[int(r)][int(c)]==0:
@@ -114,29 +122,21 @@ class AmazonEnv(Env):
                 else:
                     (r, c) = self.random_idx()
 
-        # find position for box not already occupied
-        starting_box_pos = self.box_pickup_pt
-
-        r,c = self.linear2sub(starting_box_pos)
-        self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK - 1
-
         r, c = self.linear2sub(self.box_delivery_pt)
         self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK
 
-        return self.agent_channel
+        self.box_request()
+
+        return self.linear2sub(self.box_pickup_pt), self.agent_channel
 
     def box_request(self):
+        self.box_pickup_pt = self.random_box_idx()
         r, c = self.linear2sub(self.box_pickup_pt)
-
-        if self.agent_channel[r][c] != 0:
-            self.agent_channel[r][c] -= 1
-            # print("Box picked up immediately!")
-        else:
-            self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK - 1
+        self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK - 1
 
     def find_agent_indices(self):
         indices = []
-        for i in range(self.num_agents):
+        for i in range(self.myrange()):
             indices.append(self.agent_state((i + 1)))
         return indices
 
@@ -145,19 +145,25 @@ class AmazonEnv(Env):
         deltas = AmazonEnv.ACTION_DELTAS[int(action)]
         new_agent_pos_r = min(max(agent_pos[0] + deltas[0], 0), self.grid_size - 1)
         new_agent_pos_c = min(max(agent_pos[1] + deltas[1], 0), self.grid_size - 1)
-        return (new_agent_pos_r, new_agent_pos_c)
+
+        lin_idx = self.sub2linear((new_agent_pos_r, new_agent_pos_c))
+        if np.any(self.shelves == lin_idx): ## can't collide with shelf
+            return agent_pos, lin_idx == self.box_pickup_pt
+        return (new_agent_pos_r, new_agent_pos_c), False
 
     def resolve_conflicts(self, actions, curr_positions, channel):
         next_positions = []
         didnt_move = []
+        pickups = []
 
         for i in range(len(curr_positions)):
             action = actions[i]
             curr_pos = curr_positions[i]
 
-            next_pos = self.new_location(curr_pos, action)
+            next_pos, pickedup = self.new_location(curr_pos, action)
             didnt_move.append(next_pos == curr_pos)
             next_positions.append(next_pos)
+            pickups.append(pickedup)
 
         pos_counters = {}
         for i in range(len(next_positions)):
@@ -175,11 +181,11 @@ class AmazonEnv(Env):
                     if not didnt_move[idx]:
                         next_positions[idx] = curr_positions[idx]
 
-        return next_positions
+        return next_positions, pickups
 
     def _step(self, action):
         action_str = str("".join(action))
-        actions = np.zeros(self.num_agents)
+        actions = np.zeros(self.myrange())
 
         curr_agent_pos = self.find_agent_indices()
         i = 0
@@ -192,11 +198,14 @@ class AmazonEnv(Env):
             actions[i] = action
             i += 1
 
+            if i >= self.myrange():
+                break
+
         new_agent_channel = [[0] * self.grid_size for _ in xrange(self.grid_size)]
 
-        reward = [0] * self.num_agents
+        reward = [0] * self.myrange()
 
-        next_positions = self.resolve_conflicts(actions[0:self.num_agents], curr_agent_pos, 'agent')
+        next_positions, pickups = self.resolve_conflicts(actions[0:self.myrange()], curr_agent_pos, 'agent')
 
         for i in range(len(next_positions)):
             r, c = curr_agent_pos[i]
@@ -204,19 +213,21 @@ class AmazonEnv(Env):
             new_agent_channel[new_r][new_c] = self.agent_channel[r][c]
 
         dropoff = False
+        pickup = False
         for i in range(len(next_positions)):
             r, c = self.linear2sub(self.box_pickup_pt)
             del_r, del_c = self.linear2sub(self.box_delivery_pt)
             new_r, new_c = next_positions[i]
 
-            if new_r==r and new_c==c and self.s[r][c] < AmazonEnv.BOX_DROPOFF_MARK and new_agent_channel[new_r][new_c] % 2==0:
+            if pickups[i] and not self.s[r][c] == 0:
                 # print ('Box picked up\n')
                 new_r, new_c = next_positions[i]
                 reward[i] = AmazonEnv.PICKUP_REWARD
-                new_agent_channel[new_r][new_c]= new_agent_channel[new_r][new_c]-1
+                new_agent_channel[new_r][new_c]= new_agent_channel[new_r][new_c] - 1
                 self.s[r][c] = 0
+                pickup = True
 
-            if new_r==del_r and new_c==del_c and self.s[new_r][new_c] == AmazonEnv.BOX_DROPOFF_MARK and new_agent_channel[new_r][new_c] % 2 == 1:
+            if new_r == del_r and new_c == del_c and self.s[new_r][new_c] == AmazonEnv.BOX_DROPOFF_MARK and new_agent_channel[new_r][new_c] % 2 == 1:
                 # print('Box dropped off\n')
                 reward[i] = AmazonEnv.DELIVERY_REWARD
 
@@ -227,34 +238,38 @@ class AmazonEnv(Env):
         self.agent_channel = new_agent_channel
         is_terminal = self.rem_boxes == 0
         if not is_terminal and dropoff:
-            r, c = self.linear2sub(self.box_pickup_pt)
+            self.box_request()
 
-            if self.agent_channel[r][c] != 0:
-                idx = int(self.agent_channel[r][c] / 2) - 1
-                reward[idx] = AmazonEnv.CONFLICT_REWARD
-                is_terminal = True
-            else:
-                self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK - 1
+        if self.box_in_transit():
+            box_loc = (-1,-1)
+        else:
+            box_loc = self.linear2sub(self.box_pickup_pt)
 
-        return self.agent_channel, reward, is_terminal, 'no debug information provided'
+        return (box_loc, self.agent_channel), reward, is_terminal, 'no debug information provided'
 
     def _render(self, mode='human', close=False):
         for r in range(self.grid_size):
             for c in range(self.grid_size):
+                lin_idx = self.sub2linear((r,c))
 
                 if self.s[r][c] < AmazonEnv.BOX_DROPOFF_MARK:
                     print("Box", end=' ')
+                elif np.any(self.shelves == lin_idx):
+                    print("***", end=' ')
                 elif self.agent_channel[r][c] % 2 == 1:
                     print('!!!', end=' ')
                 elif self.agent_channel[r][c] > 0:
                     print("Agt", end=' ')
                 elif self.s[r][c] == AmazonEnv.BOX_DROPOFF_MARK:
-                    print("___", end=' ')
+                    print("$$$", end=' ')
                 else:
-                    print("***", end=' ')
-            print ("")
+                    print("___", end=' ')
+            print ("\n")
         print ("\n")
         return
+
+    def set_single_train(self, single_train):
+        self.single_train = single_train
 
     def _seed(self, seed=None):
         """Set the random seed.
@@ -281,11 +296,17 @@ class AmazonEnv(Env):
 register(
     id='Amazon-v0',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':3,'num_agents':1,'total_boxes':2}
+    kwargs={'grid_size':3,'num_agents':1,'total_boxes':2, 'single_train': False}
 )
 
 register(
     id='Amazon-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':5, 'num_agents':2, 'total_boxes': 2}
+    kwargs={'grid_size':5, 'num_agents':2, 'total_boxes': 1, 'single_train':False }
+)
+
+register(
+    id='Amazon-Single-v1',
+    entry_point='envs.amazon_envs:AmazonEnv',
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':True } 
 )

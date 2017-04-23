@@ -39,6 +39,8 @@ class IndependentDQN(MultiAgent):
         self.eval_freq = args.eval_freq
         self.eval_num = args.eval_num
 
+        self.single_train = args.single_train
+
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
@@ -55,7 +57,9 @@ class IndependentDQN(MultiAgent):
         self.args = args
         self.env = env
 
-        for i in range(self.number_pred):
+        my_range = 1 if self.single_train else self.number_pred
+
+        for i in range(my_range):
             # if train one at a time every model after 1st is a copy of the first's weights
             buffer = None
             if i > 0 and self.args.solo_train:
@@ -71,13 +75,15 @@ class IndependentDQN(MultiAgent):
         return model
 
     def model_init(self, args):
-        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, 'Amazon' in args.env, args.history)
+        self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop, 'Amazon' in args.env, self.single_train, args.history)
 
     def fit(self, num_iterations, eval_num, max_episode_length=None):
         best_reward = -float('inf')
         best_weights = None
 
-        for i in range(self.number_pred):
+        my_range = 1 if self.single_train else self.number_pred
+
+        for i in range(my_range):
             if not self.args.solo_train or i == 0:
                 self.pred_model[i].create_buffer(self.env)
 
@@ -94,14 +100,12 @@ class IndependentDQN(MultiAgent):
                 A = {}
                 q_values = {}
                 action_string = ""
-                for i in range(self.number_pred):
+
+                for i in range(my_range):
                     A[i], q_values[i] = self.pred_model[i].select_action(S[i])
                     action_string += str(A[i])
 
                 R, is_terminal = self.step(action_string)
-
-                if(sum(R) != 0):
-                    print(R)
 
                 S_prime = self.preprocessor.get_state()
 
@@ -112,11 +116,11 @@ class IndependentDQN(MultiAgent):
                     print(str(num_iters) + ':\tavg_reward=' + str(avg_reward) + '\tavg_q=' + str(avg_q) + '\tavg_steps=' \
                         + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
                     if self.args.save_weights and num_iters % (5 * self.eval_freq) == 0:
-                        for i in range(self.number_pred):
+                        for i in range(my_range):
                             model = self.pred_model[i].network
                             model.save(self.args.weight_path + self.args.v + "/" + str(num_iters) + "_" + str(i) + ".hd5")
 
-                for i in range(self.number_pred):
+                for i in range(my_range):
                     model = self.pred_model[i]
                     if i > 0 and self.args.solo_train:
                         self.pred_model[0].buffer.append(S[i], A[i], R[i], S_prime[i], is_terminal)
@@ -146,7 +150,7 @@ class IndependentDQN(MultiAgent):
             + str(avg_steps) + '\tmax_reward=' + str(max_reward) + '\tstd_dev_reward=' + str(std_dev_rewards))
 
         if self.args.save_weights:
-            for i in range(self.number_pred):
+            for i in range(my_range):
                 model = self.pred_model[i]
                 model.save(self.args.weight_path+ self.args.v + "/"+ str(num_iters)+"_"+str(i) + ".hd5")
         # TODO SAVE BEST_WEIGHTS = best_weights
@@ -164,12 +168,14 @@ class IndependentDQN(MultiAgent):
         return R, is_terminal
 
     def evaluate(self, num_episodes, max_episode_length, to_render):
+        my_range = 1 if self.single_train else self.number_pred
+
         total_reward = 0.0
-        average_q_values = [0.0] * self.number_pred
+        average_q_values = [0.0] * my_range
         rewards = []
 
         # evaluation always uses greedy policy
-        greedy_policy = GreedyEpsilonPolicy(0.1)
+        greedy_policy = GreedyEpsilonPolicy(0.05)
         total_steps = 0
 
         for i in range(num_episodes):
@@ -182,7 +188,7 @@ class IndependentDQN(MultiAgent):
             self.preprocessor.add_state(s)
 
             steps = 0
-            max_q_val_sum = [0] * self.number_pred
+            max_q_val_sum = [0] * my_range
             is_terminal = False
 
             while not is_terminal and steps < max_episode_length:
@@ -193,7 +199,7 @@ class IndependentDQN(MultiAgent):
                 A = {}
                 action_string = ""
 
-                for j in range(self.number_pred):
+                for j in range(my_range):
                     model = self.pred_model[j]
 
                     q_values = model.calc_q_values(model.network, S[j])
@@ -210,7 +216,7 @@ class IndependentDQN(MultiAgent):
                     print q_values
                     print('\n')
 
-                    if len(R) > 0:
+                    if not R[0] == 0:
                         print(R)
                         print('\n')
 
@@ -219,15 +225,16 @@ class IndependentDQN(MultiAgent):
 
                 R = self.preprocessor.process_reward(R)
                 reward += R[0] * df # same for each predator bc/ it's cooperative
+  
                 self.preprocessor.add_state(s_prime)
                 df *= self.gamma
 
             total_reward += reward
             rewards.append(reward)
-            for i in range(self.number_pred):
+            for i in range(my_range):
                 average_q_values[i] += max_q_val_sum[i] / steps
 
-        avg_q, avg_reward = np.sum(np.array(average_q_values)) / (num_episodes * self.number_pred), total_reward / num_episodes
+        avg_q, avg_reward = np.sum(np.array(average_q_values)) / (num_episodes * my_range), total_reward / num_episodes
         avg_steps = total_steps / num_episodes
         return avg_reward, avg_q, avg_steps, np.max(rewards), np.std(rewards)
 

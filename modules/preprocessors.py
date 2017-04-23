@@ -20,11 +20,13 @@ class HistoryPreprocessor(Preprocessor):
       Number of previous states to prepend to state being processed.
 
     """
-    def __init__(self, frame_size, model_name, num_pred, coop, is_amazon, history_length=1):
+    def __init__(self, frame_size, model_name, num_pred, coop, is_amazon, single_train, history_length=1):
         self.history_length = history_length
+        self.single_train = single_train
         self.model_name = model_name
         self.coop = coop
         self.num_pred = num_pred
+
         self.frame_size = frame_size
         self.model_name = model_name
 
@@ -38,8 +40,46 @@ class HistoryPreprocessor(Preprocessor):
             return self.add_pacman_state(state)
 
     def add_amazon_state(self, state):
-        state = np.array(state)
-        self.frames = state
+        agent_state = np.array(state[-1])
+
+        self.frames = np.zeros([(self.num_pred * 3) + 2, ])
+
+        idxs = np.nonzero(agent_state)
+
+        agent_locs = np.nonzero(agent_state > 0)
+
+        nz_ids = agent_state[agent_locs]
+
+        def is_odd(num):
+            return not num % 2 == 0
+
+        my_range = 1 if self.single_train else self.num_pred
+
+        for i in range(my_range):
+            predator_val = int(nz_ids[i])
+
+            my_loc = agent_locs[i]
+
+            my_r = agent_locs[0][i]
+            my_c = agent_locs[1][i]
+
+            if is_odd(predator_val):
+                predator_id = (predator_val + 1)/2
+            else:
+                predator_id = predator_val / 2
+
+            # predator_idx = (predator_id - 1) * 2
+            predator_idx = (predator_id - 1) * 3
+
+            # self.frames[predator_idx] = (float(( my_r  * self.frame_size[1] ) + my_c)) / (self.frame_size[0] * self.frame_size[1])
+            self.frames[predator_idx] = float(my_r) / self.frame_size[0]
+            self.frames[predator_idx + 1] = float(my_c) / self.frame_size[1]
+            self.frames[predator_idx + 2] = 1 if is_odd(predator_val) else 0
+
+        if(state[0][0] >= 0): # if box is in transit, box_loc is (-1, -1) #convention
+            self.frames[-2] = float(state[0][0]) / self.frame_size[0]
+            self.frames[-1] = float(state[0][1]) / self.frame_size[1]
+
         return self.frames
 
     def add_pacman_state(self, state):
@@ -51,7 +91,6 @@ class HistoryPreprocessor(Preprocessor):
         state = np.add(np.add(state[0, :, :], state[1, :, :]), state[2, :, :])
 
         self.frames = state
-
         return self.frames
 
     def process_reward(self, reward):
@@ -60,6 +99,7 @@ class HistoryPreprocessor(Preprocessor):
                 total = 0
                 for val in reward:
                     total += val
+
                 return [total] * self.num_pred
             else:
                 return reward
@@ -82,46 +122,64 @@ class HistoryPreprocessor(Preprocessor):
             return self.get_pacman_state(id)
 
     def get_amazon_state(self, id):
-        full_frames = np.zeros([self.num_pred, self.frame_size[0], self.frame_size[1]])
-        agent_locs = np.nonzero(self.frames > 0)
+        full_frames = np.zeros([self.num_pred, (self.num_pred * 3) + 2])
 
-        nz_ids = self.frames[agent_locs]
+        full_frames[0, :] = self.frames
 
-        def is_odd(num):
-            return not num % 2 == 0
+        tmp = np.zeros([(self.num_pred * 3) + 2, ])
 
-        for i in range(self.num_pred):
-            my_frame = np.copy(self.frames)
+        tmp[0:3] = self.frames[3:6]
+        tmp[3:6] = self.frames[0:3]
 
-            predator_val = int(nz_ids[i])
-
-            my_loc = agent_locs[i]
-
-            my_r = agent_locs[0][i]
-            my_c = agent_locs[1][i]
-
-            if is_odd(predator_val):
-                predator_id = (predator_val + 1)/2
-            else:
-                predator_id = predator_val/2
-
-            if predator_id == 1:
-                my_frame[my_r, my_c] += 2 #downgrade other agent
-
-                if self.num_pred == 2:
-                    other_idx = 1
-                    other_r = agent_locs[0][other_idx]
-                    other_c = agent_locs[1][other_idx]
-                    my_frame[other_r, other_c] -= 2
-
-            full_frames[predator_id - 1, :, :] = my_frame
-
-        full_frames = np.divide(full_frames, 4.0)
+        full_frames[1, :] = tmp
 
         if not id is None:
-            return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)
+            return np.expand_dims(full_frames[id, :], axis=0)
 
-        return np.expand_dims(np.expand_dims(full_frames, axis=-1), axis=1)
+        return np.expand_dims(full_frames, axis=1)
+
+    # def get_amazon_state(self, id):
+
+    #     full_frames = np.zeros([self.num_pred, self.frame_size[0], self.frame_size[1]])
+    #     agent_locs = np.nonzero(self.frames > 0)
+
+    #     nz_ids = self.frames[agent_locs]
+
+    #     def is_odd(num):
+    #         return not num % 2 == 0
+
+    #     for i in range(self.num_pred):
+    #         my_frame = np.copy(self.frames)
+
+    #         predator_val = int(nz_ids[i])
+
+    #         my_loc = agent_locs[i]
+
+    #         my_r = agent_locs[0][i]
+    #         my_c = agent_locs[1][i]
+
+    #         if is_odd(predator_val):
+    #             predator_id = (predator_val + 1)/2
+    #         else:
+    #             predator_id = predator_val/2
+
+    #         if predator_id == 1:
+    #             my_frame[my_r, my_c] += 2 #downgrade other agent
+
+    #             if self.num_pred == 2:
+    #                 other_idx = 1
+    #                 other_r = agent_locs[0][other_idx]
+    #                 other_c = agent_locs[1][other_idx]
+    #                 my_frame[other_r, other_c] -= 2
+
+    #         full_frames[predator_id - 1, :, :] = my_frame
+
+    #     full_frames = np.divide(full_frames, 4.0)
+
+    #     if not id is None:
+    #         return np.expand_dims(np.expand_dims(full_frames[id], axis=-1), axis=0)
+
+    #     return np.expand_dims(np.expand_dims(full_frames, axis=-1), axis=1)
 
     def get_pacman_state(self, id):
         # if id is passed only create state for that particular agent
@@ -156,7 +214,7 @@ class HistoryPreprocessor(Preprocessor):
         return np.expand_dims(np.expand_dims(full_frames, axis=-1), axis=1)
 
     def reset(self):
-        self.frames = np.zeros([self.frame_size[0], self.frame_size[1]])
+        self.frames = np.zeros([(self.num_pred * 3) + 2, ])
 
     def get_config(self):
         return {'history_length': self.history_length}
