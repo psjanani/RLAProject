@@ -5,7 +5,6 @@ import numpy as np
 
 import binary_heap
 
-
 class Experience(object):
 
     def __init__(self, conf):
