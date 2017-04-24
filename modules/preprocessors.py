@@ -31,6 +31,7 @@ class HistoryPreprocessor(Preprocessor):
         self.model_name = model_name
 
         self.is_amazon = is_amazon
+
         self.reset()
 
     def add_state(self, state):
@@ -68,17 +69,15 @@ class HistoryPreprocessor(Preprocessor):
             else:
                 predator_id = predator_val / 2
 
-            # predator_idx = (predator_id - 1) * 2
             predator_idx = (predator_id - 1) * 3
 
-            # self.frames[predator_idx] = (float(( my_r  * self.frame_size[1] ) + my_c)) / (self.frame_size[0] * self.frame_size[1])
-            self.frames[predator_idx] = float(my_r) / self.frame_size[0]
-            self.frames[predator_idx + 1] = float(my_c) / self.frame_size[1]
-            self.frames[predator_idx + 2] = 1 if is_odd(predator_val) else 0
+            self.frames[predator_idx] = float(my_r + 1.0) / self.frame_size[0]
+            self.frames[predator_idx + 1] = float(my_c + 1.0) / self.frame_size[1]
+            self.frames[predator_idx + 2] = 1.0 if is_odd(predator_val) else 0.0
 
         if(state[0][0] >= 0): # if box is in transit, box_loc is (-1, -1) #convention
-            self.frames[-2] = float(state[0][0]) / self.frame_size[0]
-            self.frames[-1] = float(state[0][1]) / self.frame_size[1]
+            self.frames[-2] = float(state[0][0] + 1.0 ) / self.frame_size[0]
+            self.frames[-1] = float(state[0][1] + 1.0 ) / self.frame_size[1]
 
         return self.frames
 
@@ -195,11 +194,11 @@ class HistoryPreprocessor(Preprocessor):
             my_frame[pred_idxs] = 1
 
             predator_id = int(nz_ids[i])
+            if not self.args.set_controller:
+                r = pred_idxs[0][i]
+                c = pred_idxs[1][i]
 
-            r = pred_idxs[0][i]
-            c = pred_idxs[1][i]
-
-            my_frame[r, c] = 2
+                my_frame[r, c] = 2
             full_frames[predator_id - 1, :, :] = my_frame
 
         full_frames += 2

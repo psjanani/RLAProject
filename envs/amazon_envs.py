@@ -24,8 +24,8 @@ class AmazonEnv(Env):
     """
     metadata = {'render.modes': ['human']}
 
-    DELIVERY_REWARD = 10
-    PICKUP_REWARD = 1
+    DELIVERY_REWARD = 1
+    PICKUP_REWARD = 0
 
     ACTION_DELTAS = [
         [-1, 0],

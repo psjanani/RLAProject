@@ -1,11 +1,11 @@
 from keras.optimizers import Adam
 import numpy as np
-from replay import NaiveReplay
+from replay import NaiveReplay, Prioritized_Replay
 from keras.models import Model
 from utils import get_hard_target_model_updates, render
 from modules.preprocessors import HistoryPreprocessor
 from modules.policy import LinearDecayGreedyEpsilonPolicy, GreedyPolicy,\
-	GreedyEpsilonPolicy, UniformRandomPolicy
+    GreedyEpsilonPolicy, UniformRandomPolicy
 
 """Main DQN agent."""
 
@@ -55,6 +55,7 @@ class DQNAgent:
 		self.batch_size = args.batch_size
 		self.smart_burn_in = bool(args.smart_burn_in)
 		self.algorithm = args.algorithm
+		self.set_controller = args.set_controller
 		self.update_freq = int(args.update_freq)
 		self.coin_flip = self.algorithm == 'double' and self.network_name == 'linear'
 		# 'basic' algorithm has no target fixing or experience replay
@@ -89,9 +90,6 @@ class DQNAgent:
 	def create_buffer(self, env):
 		self.reset(env)
 
-		if self.smart_burn_in:
-			env.quick_burn_in()
-
 		S = self.preprocessor.get_state(self.id) 
 
 		# random sample of SARS pairs to prefill buffer
@@ -122,9 +120,6 @@ class DQNAgent:
 			if is_terminal:
 				self.reset(env)
 
-		if self.smart_burn_in:
-			env.revert()
-
 	# resets both environment and preprocessor			
 	def reset(self, env):
 		self.preprocessor.reset()
@@ -132,12 +127,19 @@ class DQNAgent:
 
 	def get_minibatch(self):
 		# get new processed state frames
-		sample = self.buffer.sample(self.batch_size)
-
-		# compute TD target
+		if (self.algorithm == 'replay_target'):
+		    sample = self.buffer.sample(self.batch_size)
+		else:
+		    sample, w, id1 = self.buffer.sample(self.batch_size)
 		true_output_masked = np.zeros([self.batch_size, self.num_actions])
 		q_value_index = np.zeros([self.batch_size, self.num_actions])
+		# compute TD target
+		if self.set_controller:
+		    true_output_masked = np.zeros([self.batch_size, self.num_actions * self.num_actions])
+		    q_value_index = np.zeros([self.batch_size, self.num_actions * self.num_actions])
+
 		state = None
+		delta = []
 		for i in range(self.batch_size):
 			true_output = sample[i].reward
 
@@ -145,16 +147,16 @@ class DQNAgent:
 			S_prime = sample[i].next_state
 
 			if not sample[i].is_terminal:
-				q_values = self.calc_q_values(self.target, sample[i].next_state)
+			    q_values = self.calc_q_values(self.target, sample[i].next_state)
 
-				if self.algorithm == 'double': #update network chooses actions
-					q_values_update = self.calc_q_values(self.network, sample[i].next_state)
-					A_prime = np.argmax(q_values_update)
-				else:
-					A_prime = np.argmax(q_values)
+			    if self.algorithm == 'double': #update network chooses actions
+			        q_values_update = self.calc_q_values(self.network, sample[i].next_state)
+			        A_prime = np.argmax(q_values_update)
+			    else:
+			        A_prime = np.argmax(q_values)
 
-				true_output += self.gamma * q_values[A_prime]
-			
+			    true_output += self.gamma * q_values[A_prime]
+			delta.append(true_output - self.calc_q_values(self.target, sample[i].state)[sample[i].action])
 			# output mask for appropriate action is one-hot vector
 			true_output_masked[i][sample[i].action] = true_output
 
@@ -162,9 +164,11 @@ class DQNAgent:
 			# must null out all other actions
 			q_value_index[i][sample[i].action] = 1
 			if state is None:
-				state = S
+			    state = S
 			else:
-				state = np.append(state, S, axis=0)
+			    state = np.append(state, S, axis=0)
+			if (self.algorithm == 'priority'):
+				self.buffer.update_priority(delta, id1)
 
 		return state, q_value_index, true_output_masked
 

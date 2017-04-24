@@ -38,6 +38,8 @@ class IndependentDQN(MultiAgent):
         self.optimizer = optimizer
         self.eval_freq = args.eval_freq
         self.eval_num = args.eval_num
+        self.set_controller = args.set_controller
+        self.args = args
 
         self.single_train = args.single_train
 
@@ -49,7 +51,7 @@ class IndependentDQN(MultiAgent):
         if (model_name == 'stanford'):
             self.m = StanfordModel((args.dim, args.dim), args.num_actions)
 
-        if (model_name == 'deep' or 'dueling' in model_name):
+        if ('deep' in model_name or 'dueling' in model_name):
             self.m = DeepQModel((args.dim, args.dim), args.num_actions, model_name)
 
     def create_model(self, env, args):
@@ -57,7 +59,7 @@ class IndependentDQN(MultiAgent):
         self.args = args
         self.env = env
 
-        my_range = 1 if self.single_train else self.number_pred
+        my_range = 1 if self.single_train or self.set_controller else self.number_pred
 
         for i in range(my_range):
             # if train one at a time every model after 1st is a copy of the first's weights
@@ -69,7 +71,10 @@ class IndependentDQN(MultiAgent):
                 model = self.m.create_model()
                 model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
                 if (args.num_burn_in != 0):
-                    buffer = NaiveReplay(args.memory, True, None)
+                    if (self.algorithm == "replay_target"):
+                        buffer = NaiveReplay(args.memory, True, None)
+                    else:
+                        buffer = Prioritized_Replay(args.memory, 10000, args.batch_size)
             self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
 
         return model
@@ -81,7 +86,7 @@ class IndependentDQN(MultiAgent):
         best_reward = -float('inf')
         best_weights = None
 
-        my_range = 1 if self.single_train else self.number_pred
+        my_range = 1 if self.single_train or self.args.set_controller else self.number_pred
 
         for i in range(my_range):
             if not self.args.solo_train or i == 0:
@@ -100,9 +105,11 @@ class IndependentDQN(MultiAgent):
                 A = {}
                 q_values = {}
                 action_string = ""
-
                 for i in range(my_range):
                     A[i], q_values[i] = self.pred_model[i].select_action(S[i])
+                    if self.set_controller:
+                        action_string += str(A[i] / 4)
+                        action_string += str(A[i] % 4)
                     action_string += str(A[i])
 
                 R, is_terminal = self.step(action_string)
@@ -168,7 +175,7 @@ class IndependentDQN(MultiAgent):
         return R, is_terminal
 
     def evaluate(self, num_episodes, max_episode_length, to_render):
-        my_range = 1 if self.single_train else self.number_pred
+        my_range = 1 if self.single_train or self.args.set_controller else self.number_pred
 
         total_reward = 0.0
         average_q_values = [0.0] * my_range
@@ -205,7 +212,11 @@ class IndependentDQN(MultiAgent):
                     q_values = model.calc_q_values(model.network, S[j])
 
                     A[j] = greedy_policy.select_action(q_values)
-                    action_string += str(A[j])
+                    if self.args.set_controller:
+                        action_string += str(A[j] / 4)
+                        action_string += str(A[j] % 4)
+                    else:
+                        action_string += str(A[j])
                     max_q_val_sum[j] += np.max(q_values)
 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
@@ -220,9 +231,6 @@ class IndependentDQN(MultiAgent):
                 #         print(R)
                 #         print('\n')
 
-                if self.debug_mode:
-                    save_states_as_images(S)
-
                 R = self.preprocessor.process_reward(R)
                 reward += R[0] * df # same for each predator bc/ it's cooperative
   
@@ -231,6 +239,7 @@ class IndependentDQN(MultiAgent):
 
             total_reward += reward
             rewards.append(reward)
+            
             for i in range(my_range):
                 average_q_values[i] += max_q_val_sum[i] / steps
 
