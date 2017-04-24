@@ -14,11 +14,12 @@ class LinearModel(Models):
     def __init__(self, input_shape, num_actions, model_name="linear"):
         self.input_shape = input_shape
         self.num_actions = num_actions
+
         self.model_name = model_name
 
     def create_model(self):
         state_input = Input(shape=(8,), name='state_input')
-        action_mask = Input(shape=(4,), name='action_mask')
+        action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
         dense1 = Dense(128, activation='relu')(state_input)
         dropout1 = Dropout(0.5)(dense1)

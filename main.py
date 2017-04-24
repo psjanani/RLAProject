@@ -51,13 +51,11 @@ def main():
     parser.add_argument('--network_name', default='linear', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
 
-    parser.add_argument('--joint', default=False, type=bool, help='Whether to model single or joint action space')
-
     parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
     parser.add_argument('--tie_break', default='max', help='how to break ties among nash equilibria.')
     parser.add_argument('--no_nash_choice', default='best_sum', help='how to choose when no nash equilibrium.  best_sum (action with best sum of q_values) or best_max (action with highest overall q.')
     
-    parser.add_argument('--num_decay_steps', default=1e6, type=int, help='Epsilon policy decay length')
+    parser.add_argument('--decay_factor', default=0.75, type=float, help='Percentage decay length over all iterations')
     parser.add_argument('--num_iterations', default=1e6, type=int, help='Number frames visited for training.')
     parser.add_argument('--smart_burn_in', default=False, type=bool)
     parser.add_argument('--set_controller', default=False, type=bool)
@@ -70,13 +68,16 @@ def main():
 
     parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
 
-    parser.add_argument('--single_train', default=True, type=bool)
+    parser.add_argument('--joint', default=False, type=bool, help='Whether to model single or joint action space')
+    parser.add_argument('--single_train', default=False, type=bool)
 
     args = parser.parse_args()
 
+    assert not (args.joint and args.single_train)
+
     args.num_iterations = args.update_freq * args.num_iterations
 
-    args.num_decay_steps = int(args.num_iterations / 1.5)
+    args.num_decay_steps = int(args.num_iterations * args.decay_factor)
     
     args.coop = not bool(args.compet)
     args.full_info = not bool(args.private)
@@ -110,6 +111,7 @@ def main():
         args.num_actions = 4 ** exp
     else:
         args.num_actions = 4 ** args.num_agents
+
         ## not sure
     args.weight_path = expanduser(args.weight_path)
     mypath = args.weight_path + "/" + args.v

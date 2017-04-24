@@ -302,7 +302,7 @@ register(
 register(
     id='Amazon-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':5, 'num_agents':2, 'total_boxes': 1, 'single_train':False }
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False }
 )
 
 register(
