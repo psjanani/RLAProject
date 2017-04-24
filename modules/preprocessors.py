@@ -136,6 +136,7 @@ class HistoryPreprocessor(Preprocessor):
 
         return np.expand_dims(full_frames, axis=1)
 
+
     def get_pacman_state(self, id):
         # if id is passed only create state for that particular agent
         # break predator state in last channel into self and others (normalize all to 1s)

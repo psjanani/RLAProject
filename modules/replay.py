@@ -42,7 +42,7 @@ class NaiveReplay(ReplayMemory):
     def end_episode(self, final_state, is_terminal):
         pass
 
-    def sample(self, batch_size, indexes=None):
+    def sample(self, batch_size, indexes=None):      
       if self.random_sample:
         return self.get_random_sample(batch_size, indexes)
 

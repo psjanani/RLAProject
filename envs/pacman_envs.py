@@ -1,5 +1,5 @@
 # coding: utf-8
-"""Define the Queue environment from problem 3 here."""
+"""PacmanEnvs environmen."""
 
 from __future__ import (absolute_import, division, print_function,
 						unicode_literals)
@@ -52,7 +52,6 @@ class PacmanEnv(Env):
 				for c in range(start_col, start_col + width):
 					self.barrier_mask[r][c] = -1
 
-
 			num_barrier_cells += height*width
 
 		return num_barrier_cells
@@ -95,7 +94,7 @@ class PacmanEnv(Env):
 
 		self.observation_space = spaces.Discrete(self.nS)
 
-		self.random_start = True
+		self.random_start = False
 		self.num_fixed_start_configs = 5
 		self.fixed_points = np.zeros([self.num_fixed_start_configs, self.num_agents, 2])
 
@@ -268,6 +267,26 @@ class PacmanEnv(Env):
 
 		return next_positions
 
+	def movable_actions(self):
+		all_movable_actions = []
+
+		predator_indices = self.find_predator_indices()
+
+		for i in range(self.num_predators):
+			movable_actions = []
+
+			predator_pos = predator_indices[i]
+
+			for j in range(len(self.ACTION_DELTAS)):
+				new_location = self.new_location(predator_pos, j)
+
+				if predator_pos != new_location:
+					movable_actions.append(j)
+
+			all_movable_actions.append(movable_actions)
+
+		return all_movable_actions
+
 
 	def _step(self, action):
 		action_str = str("".join(action))
@@ -360,6 +379,8 @@ class PacmanEnv(Env):
 
 basic_barriers = [ (2, 2, 3, 3) ]
 advanced_barrier = [ (2, 1, 7, 4), (0, 6, 8, 3) ]
+
+small_barrier = [ [ 1, 1, 4, 3 ] ]#, [0, 3, 4, 1] ]
 advanced_small_barrier = [(2, 1, 3, 1), (0, 3, 3, 1)]
 
 register(
@@ -375,13 +396,13 @@ register(
 register(
 	id='PacmanEnvMini1-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': [], 'grid_size':3, 'num_agents':2, 'prey_style': 'random', 'smart_predator': False}
+	kwargs={'barriers': [], 'grid_size':3, 'num_agents':2, 'prey_style': 'smart', 'smart_predator': False}
 )
 
 register(
 	id='PacmanEnvMini2-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
-	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'random', 'smart_predator': False}
+	kwargs={'barriers': [], 'grid_size':3, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
 )
 
 register(
@@ -390,9 +411,15 @@ register(
 	kwargs={'barriers': advanced_barrier, 'grid_size':10, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
 )
 
-
 register(
 	id='PacmanEnvMini2-SmartPrey-v0',
 	entry_point='envs.pacman_envs:PacmanEnv',
 	kwargs={'barriers': advanced_small_barrier, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
 )
+
+register(
+	id='PacmanEnvSmallBarrier2-v0',
+	entry_point='envs.pacman_envs:PacmanEnv',
+	kwargs={'barriers': advanced_small_barrier, 'grid_size':5, 'num_agents':4, 'prey_style': 'smart', 'smart_predator': False}
+)
+

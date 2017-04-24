@@ -45,6 +45,9 @@ class StanfordModel(Models):
     def create_model(self):
         img_dims = (self.input_shape[0], self.input_shape[1])
         state_input = Input(shape=img_dims, name='state_input')
+
+        # state_input_padded = ZeroPadding2D((1,1))(state_input)
+
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
         conv1 = Convolution2D(32, 3, 3, \
@@ -88,8 +91,11 @@ class DeepQModel(Models):
         state_input = Input(shape=img_dims, name='state_input')
 
 
-        conv = Convolution2D(16, 3, 3, activation='relu',
+        conv = Convolution2D(32, 3, 3, activation='relu',
                                    border_mode='same', subsample=(1, 1))(state_input)
+
+        if self.input_shape[0] > 3:
+            conv = Convolution2D(32, 3, 3, activation='relu', border_mode='same', subsample=(1,1))(conv)
 
         conv2 = Convolution2D(32, 2, 2, activation='relu',
             border_mode='same', subsample=(1, 1))(conv)

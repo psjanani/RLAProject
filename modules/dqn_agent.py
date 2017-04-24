@@ -78,8 +78,8 @@ class DQNAgent:
 	def save(self, path):
 		self.network.save(path)
 
-	def calc_q_values(self, model, state, expand_dims=False):
-		if expand_dims:
+	def calc_q_values(self, model, state):
+		if len(state.shape) < 2:
 			state = np.expand_dims(state, axis=0)
 
 		action_mask = np.ones([1, self.num_actions])
@@ -92,14 +92,20 @@ class DQNAgent:
 
 		S = self.preprocessor.get_state(self.id) 
 
+		if self.smart_burn_in:
+			env.quick_burn_in()
+
+
 		# random sample of SARS pairs to prefill buffer
 		for number in range(self.num_burn_in):
-			if self.smart_burn_in:
-				action_str = ''
-			else:
-				action_str = ['*'] * self.num_pred
-				A = np.random.randint(self.num_actions)
-				action_str[self.id] = str(A)
+			action_str = [0] * self.num_pred
+			A = np.random.randint(self.num_actions)
+
+			other_action = int(A % 4)
+			my_action = int(A // 4)
+
+			action_str[0] = str(my_action)
+			action_str[1] = str(other_action)
 
 			s_prime, R, is_terminal, debug_info = env.step("".join(action_str))
 
@@ -174,7 +180,7 @@ class DQNAgent:
 
 	def select_action(self, S, expand_dims=False):
 		# returns q_values and chosen action (network chooses action and evaluates)
-		q_values = self.calc_q_values(self.network, S, expand_dims)
+		q_values = self.calc_q_values(self.network, S)
 		q_selectors = q_values
 
 		if self.coin_flip:

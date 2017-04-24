@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
     parser.add_argument('--decay', default=1e-5, type=float, help="Learning Rate decay")
     parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
+
     parser.add_argument('--env', default='Amazon-v1', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
     parser.add_argument('--eval_num', default=200, type=int, help='Number of episodes to evaluate on.')
@@ -43,10 +44,19 @@ def main():
     parser.add_argument('--momentum', default=0.9, type=float)
     parser.add_argument('--solo_train', default=False, type=bool, help='Whether to train models one at a time or simultaneously.')
 
+    parser.add_argument('--private', default=False, type=bool, help='Whether or not predators have access to each other\'s q-values')
+    parser.add_argument('--should_move_prob', default=0.0, type=float)
+
     parser.add_argument('--agent_dissemination_freq', default=1e4, type=int, help='If solo training, how frequently to copy trained weights to other untrained agents.')
     parser.add_argument('--network_name', default='linear', help='Model Name: deep, stanford, linear, dueling, dueling_av, or dueling_max')
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
-    parser.add_argument('--num_burn_in', default=5e5, type=int, help='Buffer size pre-training.')
+
+    parser.add_argument('--joint', default=False, type=bool, help='Whether to model single or joint action space')
+
+    parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
+    parser.add_argument('--tie_break', default='max', help='how to break ties among nash equilibria.')
+    parser.add_argument('--no_nash_choice', default='best_sum', help='how to choose when no nash equilibrium.  best_sum (action with best sum of q_values) or best_max (action with highest overall q.')
+    
     parser.add_argument('--num_decay_steps', default=1e6, type=int, help='Epsilon policy decay length')
     parser.add_argument('--num_iterations', default=1e6, type=int, help='Number frames visited for training.')
     parser.add_argument('--smart_burn_in', default=False, type=bool)
@@ -57,6 +67,7 @@ def main():
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
     parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
     parser.add_argument('--weight_path', default='~/weights/', type=str, help='To save weight at eval frequency')
+
     parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
 
     parser.add_argument('--single_train', default=True, type=bool)
@@ -68,6 +79,7 @@ def main():
     args.num_decay_steps = int(args.num_iterations / 1.5)
     
     args.coop = not bool(args.compet)
+    args.full_info = not bool(args.private)
 
     if args.single_train:
         env_name = args.env.split('-')
@@ -84,18 +96,20 @@ def main():
     args.num_agents = env.num_agents
 
     if args.v == 'def':
-        print "You might want to name your experiment for later reference"
+        print "You might want to name your experiment for later reference."
 
     args.dim = env.grid_size
 
     if 'Pacman' in args.env:
-        args.num_actions = 4
+        args.num_actions = 4 ** args.num_pred
+        args.num_pred = env.num_predators
     elif 'Warehouse' in args.env:
         args.num_actions = 6
     elif 'Amazon' in args.env:
-        args.num_actions = 4
+        exp = args.num_agents if args.joint else 1
+        args.num_actions = 4 ** exp
     else:
-        args.num_actions = env.action_space.n
+        args.num_actions = 4 ** args.num_agents
         ## not sure
     args.weight_path = expanduser(args.weight_path)
     mypath = args.weight_path + "/" + args.v
@@ -142,7 +156,6 @@ def main():
             with open(args.weight_path + args.v +"/model" + str(i) + ".json", "w") as json_file:
                 json_file.write(model_json)
     multiagent.fit(args.num_iterations, args.eval_num, args.max_episode_length)
-
 
 if __name__ == '__main__':
     main()
