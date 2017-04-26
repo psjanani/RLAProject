@@ -25,11 +25,8 @@ class LinearModel(Models):
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
         dense1 = Dense(128, activation=self.activation)(state_input)
-        # dropout1 = Dropout(0.5)(dense1)
         dense2 = Dense(128, activation=self.activation)(dense1)
-        # dropout2 = Dropout(0.5)(dense2)
         dense3 = Dense(128, activation=self.activation)(dense2)
-        # dropout3 = Dropout(0.5)(dense3)
 
         action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense3)
         masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
