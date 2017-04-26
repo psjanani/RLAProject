@@ -24,7 +24,7 @@ class AmazonEnv(Env):
     """
     metadata = {'render.modes': ['human']}
 
-    DELIVERY_REWARD = 1
+    DELIVERY_REWARD = 10
     PICKUP_REWARD = 0
 
     ACTION_DELTAS = [
@@ -235,7 +235,9 @@ class AmazonEnv(Env):
                 new_agent_channel[new_r][new_c] = new_agent_channel[new_r][new_c] + 1
                 dropoff = True
 
+        # set agent_channel to new_agent_channel
         self.agent_channel = new_agent_channel
+
         is_terminal = self.rem_boxes == 0
         if not is_terminal and dropoff:
             self.box_request()
@@ -245,7 +247,7 @@ class AmazonEnv(Env):
         else:
             box_loc = self.linear2sub(self.box_pickup_pt)
 
-        return (box_loc, self.agent_channel), reward, is_terminal, 'no debug information provided'
+        return (box_loc, new_agent_channel), reward, is_terminal, 'no debug information provided'
 
     def _render(self, mode='human', close=False):
         for r in range(self.grid_size):
@@ -307,6 +309,12 @@ register(
 
 register(
     id='Amazon-Single-v1',
+    entry_point='envs.amazon_envs:AmazonEnv',
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 1, 'single_train':True } 
+)
+
+register(
+    id='Amazon-Single-v2',
     entry_point='envs.amazon_envs:AmazonEnv',
     kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':True } 
 )

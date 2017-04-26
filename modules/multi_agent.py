@@ -58,7 +58,7 @@ class IndependentDQN(MultiAgent):
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
-            self.m = LinearModel((args.dim, args.dim), args.num_actions)
+            self.m = LinearModel((args.dim, args.dim), args.activation, args.num_actions)
 
         if (model_name == 'stanford'):
             self.m = StanfordModel((args.dim, args.dim), args.num_actions)
@@ -83,7 +83,7 @@ class IndependentDQN(MultiAgent):
                 model = self.m.create_model()
                 model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
                 if (args.num_burn_in != 0):
-                    if (self.algorithm == "replay_target"):
+                    if (self.algorithm == "replay_target" or self.algorithm == 'double'):
                         buffer = NaiveReplay(args.memory, True, None)
                     else:
                         buffer = Prioritized_Replay(args.memory, 10000, args.batch_size)
@@ -220,6 +220,7 @@ class IndependentDQN(MultiAgent):
                         if self.set_controller:
                             action_string += str(A[i] / 4)
                             action_string += str(A[i] % 4)
+
                         action_string += str(A[i])
 
                     R, is_terminal = self.step(action_string)
@@ -261,8 +262,6 @@ class IndependentDQN(MultiAgent):
                             get_hard_target_model_updates(model.target, model.network)
                         if num_iters % model.update_freq == 0:
                             model.update_model(num_iters)
-                            if model.coin_flip:
-                                model.switch_roles()
 
                 num_iters += 1
                 steps += 1
@@ -304,7 +303,7 @@ class IndependentDQN(MultiAgent):
         rewards = []
 
         # evaluation always uses greedy policy
-        greedy_policy = GreedyEpsilonPolicy(0.05)
+        greedy_policy = GreedyEpsilonPolicy( 0.05 )
         total_steps = 0
 
         for ne in range(num_episodes):
@@ -341,7 +340,6 @@ class IndependentDQN(MultiAgent):
                         else:
                             action_string += str(A)
                         max_q_val_sum[j] += np.max(q_values)
-                    s_prime, R, is_terminal, debug_info = self.env.step(action_string)
                 else:
                     q_values = []
                     for i in range(my_range):
@@ -350,22 +348,17 @@ class IndependentDQN(MultiAgent):
                 
                 s_prime, R, is_terminal, debug_info = self.env.step(action_string)
 
+                R = self.preprocessor.process_reward(R)
+                reward += R[0] * df # same for each predator bc/ it's cooperative
+                self.preprocessor.add_state(s_prime)
+                df *= self.gamma
+
                 if to_render and ne == 0:
                     self.env.render()
                     print('\n')
                     print q_values
+                    print(S)
                     print('\n')
-
-                    if not R[0] == 0:
-                        print(R)
-                        print('\n')
-
-
-                R = self.preprocessor.process_reward(R)
-                reward += R[0] * df # same for each predator bc/ it's cooperative
-  
-                self.preprocessor.add_state(s_prime)
-                df *= self.gamma
 
             total_reward += reward
             rewards.append(reward)

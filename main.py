@@ -26,8 +26,10 @@ def main():
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
-    parser.add_argument('--decay', default=1e-5, type=float, help="Learning Rate decay")
+    parser.add_argument('--decay', default=1e-6, type=float, help="Learning Rate decay")
     parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
+
+    parser.add_argument('--activation', default='sigmoid', help='Activation for linear model: sigmoid, tanh, or relu recommended.')
 
     parser.add_argument('--env', default='Amazon-v1', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
@@ -69,7 +71,7 @@ def main():
     parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
 
     parser.add_argument('--joint', default=False, type=bool, help='Whether to model single or joint action space')
-    parser.add_argument('--single_train', default=False, type=bool)
+    parser.add_argument('--single_train', default=True, type=bool)
 
     args = parser.parse_args()
 

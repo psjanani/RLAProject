@@ -51,15 +51,15 @@ class DQNAgent:
 		self.memory = args.memory
 		self.num_actions = int(args.num_actions)
 		self.target_update_freq = args.target_update_freq
+		self.activation = args.activation
 		self.num_burn_in = int(args.num_burn_in)
 		self.batch_size = args.batch_size
 		self.smart_burn_in = bool(args.smart_burn_in)
 		self.algorithm = args.algorithm
 		self.set_controller = args.set_controller
 		self.update_freq = int(args.update_freq)
-		self.coin_flip = self.algorithm == 'double' and self.network_name == 'linear'
 		# 'basic' algorithm has no target fixing or experience replay
-		self.target_fixing = not self.coin_flip
+		self.target_fixing = not self.algorithm == 'basic'
 		self.verbose = args.verbose > 0
 		self.preprocessor = preprocessor
 		self.policy = LinearDecayGreedyEpsilonPolicy(args.initial_epsilon, args.end_epsilon, args.num_decay_steps)
@@ -70,8 +70,6 @@ class DQNAgent:
 			get_hard_target_model_updates(self.target, self.network)
 		elif self.algorithm == 'basic':
 			self.target = self.network # target = network (no fixing case)
-		elif self.coin_flip:
-			self.target = target_network
 		else:
 			raise Exception("This should not happen.  Check boolean instance variables.")
 
@@ -133,7 +131,7 @@ class DQNAgent:
 
 	def get_minibatch(self):
 		# get new processed state frames
-		if (self.algorithm == 'replay_target'):
+		if (self.algorithm == 'replay_target' or self.algorithm == 'double'):
 		    sample = self.buffer.sample(self.batch_size)
 		else:
 		    sample, w, id1 = self.buffer.sample(self.batch_size)
@@ -182,10 +180,6 @@ class DQNAgent:
 		# returns q_values and chosen action (network chooses action and evaluates)
 		q_values = self.calc_q_values(self.network, S)
 		q_selectors = q_values
-
-		if self.coin_flip:
-			q_selectors += self.calc_q_values(self.target, S)
-
 		A = self.policy.select_action(q_selectors)
 		return A, q_values
 

@@ -11,26 +11,27 @@ class Models:
 
 class LinearModel(Models):
 
-    def __init__(self, input_shape, num_actions, model_name="linear"):
+    def __init__(self, input_shape, activation, num_actions):
         self.input_shape = input_shape
         self.num_actions = num_actions
+        self.activation = activation
 
-        self.model_name = model_name
+        print(self.activation)
+
+        self.model_name = 'linear'
 
     def create_model(self):
         state_input = Input(shape=(8,), name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        dense1 = Dense(128, activation='relu')(state_input)
-        dropout1 = Dropout(0.5)(dense1)
-        dense2 = Dense(128, activation='relu')(dropout1)
-        dropout2 = Dropout(0.5)(dense2)
-        dense3 = Dense(128, activation='relu')(dropout2)
-        dropout3 = Dropout(0.5)(dense3)
+        dense1 = Dense(128, activation=self.activation)(state_input)
+        # dropout1 = Dropout(0.5)(dense1)
+        dense2 = Dense(128, activation=self.activation)(dense1)
+        # dropout2 = Dropout(0.5)(dense2)
+        dense3 = Dense(128, activation=self.activation)(dense2)
+        # dropout3 = Dropout(0.5)(dense3)
 
-        batchNorm = BatchNormalization()(dropout3)
-
-        action_output = Dense(self.num_actions, activation='linear', name='action_output')(batchNorm)
+        action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense3)
         masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
         model = Model(input=[state_input, action_mask], output=masked_output)
 
