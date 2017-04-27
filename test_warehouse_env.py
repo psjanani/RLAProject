@@ -84,7 +84,8 @@ def main():
         action = env.action_space.sample()
         #print (action)
         observation, reward, done, info = env.step((action))
-        env.render()
+        print (reward)
+        #env.render()
         time.sleep(0.5)
         if done:
             env.render()
