@@ -41,17 +41,23 @@ class AmazonEnv(Env):
 
     BOX_DROPOFF_MARK = -1
 
-    def __init__(self, grid_size, num_agents, total_boxes, single_train):
+    grid7_shelves = np.array([ 9, 10, 11, 37, 38, 39 ])
+    grid11_shelves = np.array([ 13, 14, 15, 16, 17, 18, 19, 101, 102, 103, 104, 105, 106, 107 ])
+
+    def __init__(self, grid_size, num_agents, total_boxes, single_train, alternating):
         self.nS = grid_size * grid_size
         self.nA = 4**(num_agents)
         self.action_space = spaces.MultiDiscrete([(0,3)] * num_agents)
         self.observation_space = spaces.Discrete(self.nS)
         self.single_train = single_train
+        self.alternating = alternating
         self.grid_size = grid_size
         self.num_agents = num_agents
         self.box_delivery_pt = (grid_size * grid_size) //2
 
-        self.shelves = np.array([ 9, 10, 11, 37, 38, 39 ])
+        self.shelves = AmazonEnv.grid7_shelves if grid_size == 7 else AmazonEnv.grid11_shelves
+
+        self.shelf_location = 'top' if np.random.rand() > 0.5 else 'bottom'
 
         self.total_boxes = total_boxes
         self.P = dict()
@@ -65,7 +71,23 @@ class AmazonEnv(Env):
         return (row, col)
 
     def random_box_idx(self):
-        idx = np.random.random_integers(0, len(self.shelves) - 1)
+        if self.alternating:
+            if self.shelf_location == 'bottom':
+                idx = np.random.random_integers(0, len(self.shelves) // 2 - 1)
+
+                assert self.shelves[idx] <= 19
+
+                self.shelf_location = 'top'
+            elif self.shelf_location == 'top':
+                idx = np.random.random_integers(len(self.shelves) // 2, len(self.shelves) - 1)
+
+                assert self.shelves[idx] >= 101
+
+                self.shelf_location = 'bottom'
+            else:
+                raise Exception('Unrecognized location ' + self.shelf_location + '!')
+        else:
+            idx = np.random.random_integers(0, len(self.shelves) - 1)
         return self.shelves[idx]
 
     def random_idx(self):
@@ -298,23 +320,35 @@ class AmazonEnv(Env):
 register(
     id='Amazon-v0',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':3,'num_agents':1,'total_boxes':2, 'single_train': False}
+    kwargs={'grid_size':3,'num_agents':1,'total_boxes':2, 'single_train': False, 'alternating': False }
 )
 
 register(
     id='Amazon-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False }
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False, 'alternating': False }
 )
 
 register(
     id='Amazon-Single-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 1, 'single_train':True } 
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 1, 'single_train':True, 'alternating': False } 
+)
+
+register(
+    id='Amazon-v2',
+    entry_point='envs.amazon_envs:AmazonEnv',
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False, 'alternating': False } 
 )
 
 register(
     id='Amazon-Single-v2',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':True } 
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':True, 'alternating': False } 
+)
+
+register(
+    id='Amazon-Alternating-v1',
+    entry_point='envs.amazon_envs:AmazonEnv',
+    kwargs={'grid_size':11, 'num_agents':2, 'total_boxes': 4, 'single_train':False, 'alternating': True } 
 )

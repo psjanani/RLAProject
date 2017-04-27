@@ -71,7 +71,7 @@ def main():
     parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
 
     parser.add_argument('--joint', default=False, type=bool, help='Whether to model single or joint action space') # 4 or 16
-    parser.add_argument('--single_train', default=True, type=bool) # whether one agent (still state space of 8) xxx 000 xx , xxx yyy zz
+    parser.add_argument('--single_train', default=False, type=bool) # whether one agent (still state space of 8) xxx 000 xx , xxx yyy zz
 
     args = parser.parse_args()
 
