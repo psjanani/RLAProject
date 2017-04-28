@@ -352,12 +352,11 @@ class IndependentDQN(MultiAgent):
                 self.preprocessor.add_state(s_prime)
                 df *= self.gamma
 
-                if to_render and ne == 0:
-                    self.env.render()
-                    print('\n')
-                    print q_values
-                    print(S)
-                    print('\n')
+                # if to_render and ne < 10:
+                #     self.env.render()
+                #     print('\n')
+                #     print q_values
+                #     print('\n')
 
             total_reward += reward
             rewards.append(reward)
