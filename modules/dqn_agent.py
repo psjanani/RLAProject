@@ -116,7 +116,6 @@ class DQNAgent:
 			# get new processed state frames
 			S_prime = self.preprocessor.get_state(self.id)
 			R = self.preprocessor.process_reward(R)
-
 			self.buffer.append(S, A, R[self.id], S_prime, is_terminal)
 
 			S = S_prime
@@ -139,8 +138,8 @@ class DQNAgent:
 		q_value_index = np.zeros([self.batch_size, self.num_actions])
 		# compute TD target
 		if self.set_controller:
-			true_output_masked = np.zeros([self.batch_size, self.num_actions * self.num_actions])
-			q_value_index = np.zeros([self.batch_size, self.num_actions * self.num_actions])
+			true_output_masked = np.zeros([self.batch_size, self.num_actions])
+			q_value_index = np.zeros([self.batch_size, self.num_actions])
 
 		state = None
 		delta = []

@@ -31,7 +31,6 @@ class LinearModel(Models):
         action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense3)
         masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
         model = Model(input=[state_input, action_mask], output=masked_output)
-
         return model
 
 class StanfordModel(Models):

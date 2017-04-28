@@ -60,7 +60,7 @@ def main():
     parser.add_argument('--decay_factor', default=0.75, type=float, help='Percentage decay length over all iterations')
     parser.add_argument('--num_iterations', default=1e6, type=int, help='Number frames visited for training.')
     parser.add_argument('--smart_burn_in', default=False, type=bool)
-    parser.add_argument('--set_controller', default=False, type=bool)
+    parser.add_argument('--set_controller', default=True, type=bool)
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
     parser.add_argument('--update_freq', default=10, type=int, help='Update frequency.')
@@ -70,17 +70,15 @@ def main():
 
     parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
 
-    parser.add_argument('--joint', default=False, type=bool, help='Whether to model single or joint action space') # 4 or 16
-    parser.add_argument('--single_train', default=True, type=bool) # whether one agent (still state space of 8) xxx 000 xx , xxx yyy zz
+    parser.add_argument('--joint', default=True, type=bool, help='Whether to model single or joint action space') # 4 or 16
+    parser.add_argument('--single_train', default=False, type=bool) # whether one agent (still state space of 8) xxx 000 xx , xxx yyy zz
 
     args = parser.parse_args()
-
     assert not (args.joint and args.single_train)
 
     args.num_iterations = args.update_freq * args.num_iterations
 
     args.num_decay_steps = int(args.num_iterations * args.decay_factor)
-    
     args.coop = not bool(args.compet)
     args.full_info = not bool(args.private)
 
@@ -153,7 +151,7 @@ def main():
     multiagent = IndependentDQN(args.num_agents, args.network_name, args, optimizer, loss)
     multiagent.create_model(env, args)
     if args.save_weights:
-        myrange = 1 if args.single_train else multiagent.number_pred
+        myrange = 1 if args.single_train or args.set_controller else multiagent.number_pred
         for i in range(myrange):
             model = multiagent.pred_model[i].network
             model_json = model.to_json()
