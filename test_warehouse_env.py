@@ -13,6 +13,8 @@ from modules.models import *
 from modules.multi_agent import *
 import envs.pacman_envs
 from os.path import expanduser
+import subprocess
+import shutil
 
 def make_assertions(args):
     algo = args.algorithm
@@ -77,19 +79,22 @@ def main():
     env = gym.make(args.env)
     args.num_agents = env.num_agents
 
-
-    env.render()
-    for i in range(200):
+    subprocess.call(['mkdir', 'images'])
+    
+    for i in range(100):
         # your agent here (this takes random actions)
         action = env.action_space.sample()
         #print (action)
         observation, reward, done, info = env.step((action))
-        print (reward)
-        #env.render()
+        #print (reward)
+        env.render(i+1)
         time.sleep(0.5)
         if done:
-            env.render()
+            env.render(i+1)
             break
+
+    shutil.rmtree('images')
+
 
 
 

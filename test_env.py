@@ -86,9 +86,9 @@ def main():
         action = env.action_space.sample()
         #print (action)
         observation, reward, done, info = env.step((action))
-        env.render(i+1)
+        env.render(i+1,done)
         if done:
-            env.render(i+1)
+            env.render(i+1,done)
             break
 
     if args.v == 'def':

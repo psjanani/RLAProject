@@ -9,7 +9,15 @@ from gym.envs.registration import register
 import random
 
 import numpy as np
-
+import PIL
+from PIL import Image
+from pylab import figure, axes, pie, title, show
+from distance_from import smart_move
+import matplotlib
+from matplotlib import cm
+from PIL import ImageEnhance
+import subprocess
+import shutil
 
 class WarehouseEnv(Env):
     """Implement the Warehouse environment.
@@ -234,10 +242,35 @@ class WarehouseEnv(Env):
         return self.agent_channel, reward, is_terminal, 'no debug information provided'
 
 
-    def _render(self, mode='human', close=False):
+    def render(self, iter,mode='human', close=False):
+
+        image = np.zeros((self.grid_size, self.grid_size))
         for r in range(self.grid_size):
             for c in range(self.grid_size):
+                if self.s[r][c] == 1:
+                    image[r][c] = 0.0
+                elif self.agent_channel[r][c] % 2 == 0 and self.agent_channel[r][c] > 0:
+                    image[r][c] = 0.5
+                elif self.agent_channel[r][c] % 2 == 1:
+                    image[r][c] = 0.2
+                else:
+                    image[r][c] = 1.0
 
+        basewidth = 1000
+        wpercent = (basewidth / self.grid_size)
+        hsize = int((self.grid_size) * float(wpercent))
+        # print (barrier)
+        image = Image.fromarray(np.uint8(cm.gist_earth(image) * 255))
+        iterstr = '00' + str(iter)
+        iterstr = iterstr[len(iterstr) - 3:len(iterstr)]
+        image = image.resize((basewidth, hsize))
+        enhancer = ImageEnhance.Sharpness(image)
+        factor = 4.0
+        image = enhancer.enhance(factor)
+        image.save('images/env' + iterstr + '.png')
+
+        for r in range(self.grid_size):
+            for c in range(self.grid_size):
                 if self.s[r][c] == 1:
                     print("Box", end=' ')
                 elif self.agent_channel[r][c]%2==0 and self.agent_channel[r][c]>0:
@@ -248,6 +281,11 @@ class WarehouseEnv(Env):
                     print("___", end=' ')
             print ("")
         print ("\n")
+        if iter%50==0:
+            subprocess.call(['ffmpeg', '-f', 'image2', '-r', '3', '-i', 'images/env%03d.png', '-vcodec', 'mpeg4', '-y',
+                             'movie.mp4'])
+
+
         return
 
     def _seed(self, seed=None):
@@ -276,4 +314,4 @@ class WarehouseEnv(Env):
 register(
     id='Warehouse-v0',
     entry_point='envs.warehouse_envs:WarehouseEnv',
-    kwargs={'grid_size':3,'num_agents':2,'total_boxes':10})
+    kwargs={'grid_size':4,'num_agents':2,'total_boxes':10})
