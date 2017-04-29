@@ -23,10 +23,10 @@ def make_assertions(args):
 def main():
     parser = argparse.ArgumentParser(description='Run DQN on Amazon :P')
     parser.add_argument('--algorithm', default='replay_target', help='One of basic, priority, replay_target, double')
-    parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
-    parser.add_argument('--decay', default=1e-6, type=float, help="Learning Rate decay")
+    parser.add_argument('--decay', default=1e-4, type=float, help="Learning Rate decay")
     parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
 
     parser.add_argument('--activation', default='sigmoid', help='Activation for linear model: sigmoid, tanh, or relu recommended.')
