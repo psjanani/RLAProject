@@ -28,8 +28,30 @@ class LinearModel(Models):
         dense2 = Dense(128, activation=self.activation)(dense1)
         dense3 = Dense(128, activation=self.activation)(dense2)
 
-        action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense3)
-        masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+        if "dueling" in self.model_name:
+            value_stream = Dense(128, activation='relu')(dense2)
+
+            advantage_stream = Dense(128, activation='relu')(dense2)
+            value_out = Dense(1, activation='linear', name='action_output')(value_stream)
+            advantage_out = Dense(self.num_actions, activation='linear', name='advantage_out')(advantage_stream)
+
+            rep_value = RepeatVector(self.num_actions)(value_out)
+            rep_value = Flatten()(rep_value)
+
+            if self.model_name == "dueling_av":
+                advan_merge = Lambda(lambda y: y - K.mean(y, keepdims=True), output_shape=(self.num_actions,))(advantage_out)
+            elif self.model_name == "dueling_max":
+                advan_merge = Lambda(lambda y: y - K.max(y, keepdims=True), output_shape=(self.num_actions,))(advantage_out)
+            else:
+                advan_merge = advantage_out
+            action_mask = Input(shape=(self.num_actions,), name='action_mask')
+            merged_action = merge(inputs=[rep_value, advan_merge], mode='sum', name='merged_action')
+            masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
+
+        else:
+            action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense3)
+            masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+
         model = Model(input=[state_input, action_mask], output=masked_output)
 
         return model
