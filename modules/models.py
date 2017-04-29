@@ -53,7 +53,6 @@ class LinearModel(Models):
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 
         model = Model(input=[state_input, action_mask], output=masked_output)
-
         return model
 
 class StanfordModel(Models):
