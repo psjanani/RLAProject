@@ -38,7 +38,7 @@ class DQNAgent:
 		How many samples in each minibatch.
 	"""
 	## Currently the buffer, preprocessor, env can be shared between multiple DQNS.
-	def __init__(self, id, network, buffer, preprocessor, target_network, args):
+	def __init__(self, id, network, buffer, preprocessor, target_network, args, small_model=None):
 		self.id = id
 		self.network = network
 		self.gamma = args.gamma
@@ -47,7 +47,7 @@ class DQNAgent:
 
 		if 'Pacman' in args.env:
 			self.num_pred /= 2
-
+		self.small_model = small_model
 		self.memory = args.memory
 		self.num_actions = int(args.num_actions)
 		self.target_update_freq = args.target_update_freq
@@ -64,26 +64,37 @@ class DQNAgent:
 		self.preprocessor = preprocessor
 		self.policy = LinearDecayGreedyEpsilonPolicy(args.initial_epsilon, args.end_epsilon, args.num_decay_steps)
 		self.buffer = buffer
-
+		self.target_fixing = False
 		if self.target_fixing:
 			self.target = Model.from_config(self.network.get_config())
 			get_hard_target_model_updates(self.target, self.network)
-		elif self.algorithm == 'basic':
+		elif self.algorithm == 'basic' or self.algorithm == 'replay_target':
 			self.target = self.network # target = network (no fixing case)
 		else:
-			raise Exception("This should not happen.  Check boolean instance variables.")
+			pass
+			#raise Exception("This should not happen.  Check boolean instance variables.")
 
 	def save(self, path):
 		self.network.save(path)
 
 	def calc_q_values(self, model, state):
+		exp = False
+		if type(state) == list:
+			exp = True
+			memory = np.ones([1, 1])
+			memory[0] = state[1]
+			state = state[0]
 		if len(state.shape) < 2:
 			state = np.expand_dims(state, axis=0)
-
 		action_mask = np.ones([1, self.num_actions])
-		q_values = model.predict_on_batch([state, action_mask])
 
-		return q_values.flatten()
+		if exp:
+			q_values = model.predict_on_batch([state, action_mask, memory])
+			memory = self.small_model.predict([state, memory])
+			return [q_values.flatten(), memory.flatten()]
+		else:
+			q_values = model.predict_on_batch([state, action_mask])
+			return q_values.flatten()
 
 	def create_buffer(self, env):
 		self.reset(env)
@@ -143,23 +154,25 @@ class DQNAgent:
 
 		state = None
 		delta = []
+		memory = None
 		for i in range(self.batch_size):
 			true_output = sample[i].reward
 
 			S = sample[i].state
 			S_prime = sample[i].next_state
-
+			mem = sample[i].memory
 			if not sample[i].is_terminal:
-				q_values = self.calc_q_values(self.target, sample[i].next_state)
-
+				q_values = self.calc_q_values(self.target, [sample[i].next_state, sample[i].memory])
+				q_values = q_values[0]
 				if self.algorithm == 'double': #update network chooses actions
 					q_values_update = self.calc_q_values(self.network, sample[i].next_state)
 					A_prime = np.argmax(q_values_update)
 				else:
+
 					A_prime = np.argmax(q_values)
 
 					true_output += self.gamma * q_values[A_prime]
-			delta.append(true_output - self.calc_q_values(self.target, sample[i].state)[sample[i].action])
+			#delta.append(true_output - self.calc_q_values(self.target, sample[i].state)[sample[i].action])
 			# output mask for appropriate action is one-hot vector
 			true_output_masked[i][sample[i].action] = true_output
 
@@ -168,22 +181,31 @@ class DQNAgent:
 			q_value_index[i][sample[i].action] = 1
 			if state is None:
 				state = S
+				memory = np.array([0])
+				memory[0] = mem
 			else:
 				state = np.append(state, S, axis=0)
+				memory = np.append(memory, mem, axis=0)
 		if (self.algorithm == 'priority'):
 			self.buffer.update_priority(delta, id1)
 
-		return state, q_value_index, true_output_masked
+		return state, q_value_index, true_output_masked, memory
 
 	def select_action(self, S, expand_dims=False):
 		# returns q_values and chosen action (network chooses action and evaluates)
 		q_values = self.calc_q_values(self.network, S)
-		q_selectors = q_values
-		A = self.policy.select_action(q_selectors)
-		return A, q_values
+		if type(q_values) == list:
+			q_selectors = q_values[0]
+			A = self.policy.select_action(q_selectors)
+			return [A, q_values[1]], q_values[0]
+		else:
+			q_selectors = q_values
+			A = self.policy.select_action(q_selectors)
+			return A, q_values
+
 
 	def update_model(self, num_iters):
-		minibatch, q_value_index, true_output_masked = self.get_minibatch()
+		minibatch, q_value_index, true_output_masked, memory = self.get_minibatch()
 		loss = self.network.train_on_batch([minibatch, q_value_index], true_output_masked)
 	# render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
 

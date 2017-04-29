@@ -1,7 +1,7 @@
-from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda, Dropout
+from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda, Dropout, LSTM, TimeDistributed, Embedding, Reshape
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.core import RepeatVector
-from keras.models import Model
+from keras.models import Model, Sequential
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
 
@@ -32,6 +32,39 @@ class LinearModel(Models):
         masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
         model = Model(input=[state_input, action_mask], output=masked_output)
         return model
+
+
+class DRQN(Models):
+
+    def __init__(self, input_shape, activation, num_actions):
+        self.input_shape = input_shape
+        self.num_actions = num_actions
+        self.activation = activation
+
+        print(self.activation)
+
+        self.model_name = 'linear'
+
+    def create_model(self):
+        state_input_agent1 = Input(shape=(8,), batch_shape=(1,8), name='state_input')
+        agent_input_agent1 = Input(shape=(1,), batch_shape=(1, 1), name='agent_input')
+        info_agent1 = Dense(128)(agent_input_agent1)
+        resh = Reshape((1, 8))(state_input_agent1)
+        action_mask_agent1 = Input(shape=(self.num_actions, ), batch_shape=(1, self.num_actions), name='action_mask')
+        lstm = LSTM(128, stateful=True, return_sequences=True)(resh)
+        dense1_agent1 = Reshape((128, ))(lstm)
+        merged_input =  merge([dense1_agent1, info_agent1], mode='sum')
+        dense2_agent1 = Dense(128, activation=self.activation)(merged_input)
+        output_agent2 = Dense(1)(dense2_agent1)
+        dense3_agent1 = Dense(128, activation=self.activation)(output_agent2)
+        merged_input1 = merge([dense2_agent1, dense3_agent1], mode='sum')
+        small_model = Model(input=[state_input_agent1, agent_input_agent1],
+                      output=output_agent2)
+        action_output = Dense(self.num_actions, activation='linear', name='action_output')(merged_input1)
+        masked_output = merge([action_mask_agent1, action_output], mode='mul', name='merged_output')
+        model = Model(input=[state_input_agent1, action_mask_agent1, agent_input_agent1], output=masked_output)
+        return model, small_model
+
 
 class StanfordModel(Models):
 

@@ -36,8 +36,8 @@ class NaiveReplay(ReplayMemory):
         self.ringbuffer = RingBuffer(max_size)
         self.random_sample = random_sample
 
-    def append(self, state, action, reward, next_state, terminal):
-        self.ringbuffer.append(Sample(state, action, reward, next_state, terminal))
+    def append(self, state, action, memory, reward, next_state, terminal):
+        self.ringbuffer.append(Sample(state, action, memory, reward, next_state, terminal))
 
     def end_episode(self, final_state, is_terminal):
         pass
@@ -101,8 +101,8 @@ class Prioritized_Replay(ReplayMemory):
         self.reset_count = 10
         self.update = 1
 
-    def append(self, state, action, reward, next_state, terminal):
-        self.buffer.store(Sample(state, action, reward, next_state, terminal))
+    def append(self, state, action, memory, reward, next_state, terminal):
+        self.buffer.store(Sample(state, action,memory, reward, next_state, terminal))
         self.update += 1
         if(self.update % self.reset_count == 0):
             self.update = 0

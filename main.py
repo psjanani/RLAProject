@@ -27,13 +27,13 @@ def main():
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
     parser.add_argument('--decay', default=1e-6, type=float, help="Learning Rate decay")
-    parser.add_argument('--end_epsilon', default=0.1, type=float, help='Steady state epsilon')
+    parser.add_argument('--end_epsilon', default=0.5, type=float, help='Steady state epsilon')
 
     parser.add_argument('--activation', default='sigmoid', help='Activation for linear model: sigmoid, tanh, or relu recommended.')
 
     parser.add_argument('--env', default='Amazon-v1', help='Env name')
-    parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
-    parser.add_argument('--eval_num', default=200, type=int, help='Number of episodes to evaluate on.')
+    parser.add_argument('--eval_freq', default=10000, type=int, help='Number frames in between evaluations')
+    parser.add_argument('--eval_num', default=10, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
     parser.add_argument('--gamma', default=0.95, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
@@ -63,7 +63,7 @@ def main():
     parser.add_argument('--set_controller', default=True, type=bool)
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
-    parser.add_argument('--update_freq', default=10, type=int, help='Update frequency.')
+    parser.add_argument('--update_freq', default=2, type=int, help='Update frequency.')
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
     parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
     parser.add_argument('--weight_path', default='~/weights/', type=str, help='To save weight at eval frequency')
@@ -149,7 +149,7 @@ def main():
         loss = args.loss
 
     # Create the multi-Agent setting
-    multiagent = IndependentDQN(args.num_agents, args.network_name, args, optimizer, loss)
+    multiagent = DIALAgent(args.num_agents, args.network_name, args, optimizer, loss)
     multiagent.create_model(env, args)
     if args.save_weights:
         myrange = 1 if args.single_train or args.set_controller else multiagent.number_pred

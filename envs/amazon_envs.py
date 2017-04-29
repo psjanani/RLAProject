@@ -41,7 +41,7 @@ class AmazonEnv(Env):
 
     BOX_DROPOFF_MARK = -1
 
-    grid7_shelves = np.array([ 9, 10, 11, 37, 38, 39 ])
+    grid7_shelves = np.array([ 7, 8, 9, 17, 18, 19 ])
     grid11_shelves = np.array([ 13, 14, 15, 16, 17, 18, 19, 101, 102, 103, 104, 105, 106, 107 ])
 
     def __init__(self, grid_size, num_agents, total_boxes, single_train, alternating):
@@ -332,7 +332,7 @@ register(
 register(
     id='Amazon-Single-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 1, 'single_train':True, 'alternating': False } 
+    kwargs={'grid_size':5, 'num_agents':2, 'total_boxes': 1, 'single_train':True, 'alternating': False }
 )
 
 register(

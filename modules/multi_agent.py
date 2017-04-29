@@ -202,6 +202,7 @@ class IndependentDQN(MultiAgent):
 
         num_iters = 0
         while num_iters < num_iterations:
+            self.pred_model[0].network.reset_states()
             self.pred_model[0].reset(self.env)
             is_terminal = False
 
@@ -319,6 +320,8 @@ class IndependentDQN(MultiAgent):
 
             is_terminal = False
 
+            self.pred_model[0].network.reset_states()
+            self.pred_model[1].network.reset_states()
             while not is_terminal and steps < max_episode_length:
                 S = self.preprocessor.get_state()
 
@@ -409,39 +412,22 @@ class DIALAgent(MultiAgent):
         self.end_epsilon = args.end_epsilon
         self.loss = loss
         self.model_name = model_name
-        if (model_name == 'linear'):
-            self.m = LinearModel((args.dim, args.dim), args.activation, args.num_actions)
-
-        if (model_name == 'stanford'):
-            self.m = StanfordModel((args.dim, args.dim), args.num_actions)
-
-        if ('deep' in model_name or 'dueling' in model_name):
-            self.m = DeepQModel((args.dim, args.dim), args.num_actions, model_name)
+        self.m = DRQN((args.dim, args.dim), args.activation, args.num_actions)
 
     def create_model(self, env, args):
         self.model_init(args)
         self.args = args
         self.env = env
 
-        my_range = 1 if self.single_train or self.set_controller else self.number_pred
+        my_range = self.number_pred
 
         for i in range(my_range):
             # if train one at a time every model after 1st is a copy of the first's weights
-            buffer = None
-            if i > 0 and self.args.solo_train:
-                model = Model.from_config(self.pred_model[0].network.get_config())
-                get_hard_target_model_updates(model, self.pred_model[0].network)
-            else:
-                model = self.m.create_model()
-                model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
-                if (args.num_burn_in != 0):
-                    if (self.algorithm == "replay_target" or self.algorithm == 'double'):
-                        buffer = NaiveReplay(args.memory, True, None)
-                    else:
-                        buffer = Prioritized_Replay(args.memory, 10000, args.batch_size)
-            self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args)
-
-        return model
+            buffer = NaiveReplay(1, True, None)
+            model, small_model = self.m.create_model()
+            model.compile(optimizer=self.optimizer, loss=self.loss, metrics=['mae'])
+            self.pred_model[i] = DQNAgent(i, model, buffer, self.preprocessor, None, args, small_model)
+        return self.pred_model
 
     def model_init(self, args):
         self.preprocessor = HistoryPreprocessor((args.dim, args.dim), args.network_name, self.number_pred, self.coop,
@@ -546,36 +532,28 @@ class DIALAgent(MultiAgent):
     def fit(self, num_iterations, eval_num, max_episode_length=None):
         best_reward = -float('inf')
         best_weights = None
-
-        my_range = 1 if self.single_train or self.args.set_controller else self.number_pred
-
-        for i in range(my_range):
-            if not self.args.solo_train or i == 0:
-                self.pred_model[i].create_buffer(self.env)
+        my_range = self.number_pred
 
         num_iters = 0
         while num_iters < num_iterations:
             self.pred_model[0].reset(self.env)
             is_terminal = False
-
             steps = 0
             # start an episode
+            memory = [0, 0]
             while steps < max_episode_length and not is_terminal:
                 # compute step and gather SARS pair
                 S = self.preprocessor.get_state()
-
                 if not self.joint:
                     A = {}
                     q_values = {}
                     action_string = ""
                     for i in range(my_range):
-                        A[i], q_values[i] = self.pred_model[i].select_action(S[i])
-                        if self.set_controller:
-                            action_string += str(A[i] / 4)
-                            action_string += str(A[i] % 4)
-
-                        action_string += str(A[i])
-
+                        A[i], q_values[i] = self.pred_model[i].select_action([S[i], memory[i]])
+                        action = A[i][0]
+                        memory[(i + 1)%2] = A[i][1][0] # The agent's memory
+                        memory[(i + 1) % 2] = 0
+                        action_string += str(action)
                     R, is_terminal = self.step(action_string)
                 else:
                     q_values = []
@@ -587,8 +565,11 @@ class DIALAgent(MultiAgent):
                     R, is_terminal = self.step(A)
 
                 S_prime = self.preprocessor.get_state()
+             #   sum1 = np.exp(memory[0]) + np.exp(memory[1])
+             #   memory[0] = np.exp(memory[0])/sum1
+             #   memory[1] = np.exp(memory[1]) / sum1
 
-                if num_iters % self.eval_freq == 0:
+                if num_iters % self.eval_freq == 10:
                     avg_reward, avg_q, avg_steps, max_reward, std_dev_rewards = self.evaluate(self.eval_num,
                                                                                               self.max_test_episode_length,
                                                                                               num_iters % (
@@ -607,19 +588,22 @@ class DIALAgent(MultiAgent):
                     if i > 0 and self.args.solo_train:
                         my_A = int(A[i]) * 4 + int(A[0]) if self.joint else A[i]
 
-                        self.pred_model[0].buffer.append(S[i], my_A, R[i], S_prime[i], is_terminal)
+                        self.pred_model[0].buffer.append(S[i], my_A, memory[i], R[i], S_prime[i], is_terminal)
 
                         if num_iters % self.agent_dissemination_freq == 0:
                             get_hard_target_model_updates(self.pred_model[0].network, model.network)
                     else:
                         other_idx = 0 if i == 1 else 0
-                        my_A = int(A[i]) * 4 + int(A[other_idx]) if self.joint else A[i]
-
-                        model.buffer.append(S[i], my_A, R[i], S_prime[i], is_terminal)
+                        my_A = int(A[i]) * 4 + int(A[other_idx]) if self.joint else A[i][0]
+                        model.buffer.append(S[i], my_A, memory[i],R[i], S_prime[i], is_terminal)
                         if model.target_fixing and num_iters % model.target_update_freq == 0:
                             get_hard_target_model_updates(model.target, model.network)
+                        minibatch = {}
+
                         if num_iters % model.update_freq == 0:
-                            model.update_model(num_iters)
+                            minibatch, q_value_index, true_output_masked, mem = self.pred_model[i].get_minibatch()
+
+                            loss = self.pred_model[i].network.train_on_batch([minibatch, q_value_index, mem], true_output_masked)
 
                 num_iters += 1
                 steps += 1
@@ -685,20 +669,21 @@ class DIALAgent(MultiAgent):
                 steps += 1
                 total_steps += 1
 
+
                 if not self.joint:
+                    A = {}
+                    q_values = {}
                     action_string = ""
+                    memory = [0.5, 0.5]
                     for j in range(my_range):
                         model = self.pred_model[j]
 
-                        q_values = model.calc_q_values(model.network, S[j])
-
-                        A = greedy_policy.select_action(q_values)
-                        if self.args.set_controller:
-                            action_string += str(A / 4)
-                            action_string += str(A % 4)
-                        else:
-                            action_string += str(A)
-                        max_q_val_sum[j] += np.max(q_values)
+                        q_values = model.calc_q_values(model.network, [S[j], memory[j]])
+                        memory[(j+1)%2]  = q_values[1]
+                        memory[(j + 1) % 2] = 0
+                        A = greedy_policy.select_action(q_values[0])
+                        action_string += str(A)
+                        max_q_val_sum[j] += np.max(q_values[0])
                 else:
                     q_values = []
                     for i in range(my_range):
