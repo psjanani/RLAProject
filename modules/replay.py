@@ -96,7 +96,7 @@ class Prioritized_Replay(ReplayMemory):
                 'learn_start': 10,
                 'partition_num':33,
                 'total_step': 1000,
-                'batch_size': 32}
+                'batch_size': 32 }
         self.buffer = Experience(conf=conf)
         self.reset_count = 10
         self.update = 1

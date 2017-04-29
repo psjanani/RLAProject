@@ -58,10 +58,10 @@ class IndependentDQN(MultiAgent):
         self.loss = loss
         self.model_name = model_name
         if (model_name == 'linear'):
-            self.m = LinearModel((args.dim, args.dim), args.activation, args.num_actions)
+            self.m = LinearModel((args.dim, args.dim), args.activation, args.num_actions, model_name)
 
         if (model_name == 'stanford'):
-            self.m = StanfordModel((args.dim, args.dim), args.num_actions)
+            self.m = StanfordModel((args.dim, args.dim), args.num_actions, model_name)
 
         if ('deep' in model_name or 'dueling' in model_name):
             self.m = DeepQModel((args.dim, args.dim), args.num_actions, model_name)
@@ -409,8 +409,8 @@ class DIALAgent(MultiAgent):
         self.end_epsilon = args.end_epsilon
         self.loss = loss
         self.model_name = model_name
-        if (model_name == 'linear'):
-            self.m = LinearModel((args.dim, args.dim), args.activation, args.num_actions)
+        if ('linear' in model_name):
+            self.m = LinearModel((args.dim, args.dim), args.activation, args.num_actions, self.model_name)
 
         if (model_name == 'stanford'):
             self.m = StanfordModel((args.dim, args.dim), args.num_actions)

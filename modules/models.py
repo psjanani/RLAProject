@@ -11,22 +11,24 @@ class Models:
 
 class LinearModel(Models):
 
-    def __init__(self, input_shape, activation, num_actions):
+    def __init__(self, input_shape, activation, num_actions, model_name):
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.activation = activation
 
-        print(self.activation)
+        model_name_split = model_name.split(':')
+        self.model_name = model_name_split[0]
 
-        self.model_name = 'linear'
+        if len(model_name_split) == 2:
+            self.dueling = model_name_split[1]
+        else:
+            self.dueling = "no"
 
     def create_model(self):
         state_input = Input(shape=(8,), name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
         dense1 = Dense(128, activation=self.activation)(state_input)
-        dense2 = Dense(128, activation=self.activation)(dense1)
-        dense3 = Dense(128, activation=self.activation)(dense2)
 
         if "dueling" in self.model_name:
             value_stream = Dense(128, activation='relu')(dense2)
@@ -49,6 +51,8 @@ class LinearModel(Models):
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
 
         else:
+            dense2 = Dense(128, activation=self.activation)(dense1)
+            dense3 = Dense(128, activation=self.activation)(dense2)
             action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense3)
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 

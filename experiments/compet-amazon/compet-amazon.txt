@@ -1,0 +1,73 @@
+_env_closer_id=0
+agent_channel=[[0, 0, 2, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 4], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]]
+rem_boxes=2
+action_space=MultiDiscrete2
+P={}
+num_agents=2
+_closed=False
+nA=16
+single_train=False
+shelves=[ 9 10 11 37 38 39]
+observation_space=Discrete(49)
+s=[[ 0.  0.  0.  0.  0.  0.  0.]
+ [ 0.  0.  0.  0.  0.  0.  0.]
+ [ 0.  0.  0.  0.  0.  0.  0.]
+ [ 0.  0.  0. -1.  0.  0.  0.]
+ [ 0.  0.  0.  0.  0.  0.  0.]
+ [ 0.  0.  0. -2.  0.  0.  0.]
+ [ 0.  0.  0.  0.  0.  0.  0.]]
+box_pickup_pt=38
+np_random=<mtrand.RandomState object at 0x11b569aa0>
+box_delivery_pt=24
+total_boxes=2
+nS=49
+spec=EnvSpec(Amazon-v2)
+grid_size=7
+target_update_freq=10000.0
+initial_epsilon=1.0
+verbose=2
+dim=7
+solo_train=False
+private=False
+num_decay_steps=7500000
+coop=False
+network_name=linear
+agent_dissemination_freq=10000.0
+smart_burn_in=False
+eval_freq=10000.0
+decay=0.0001
+no_nash_choice=best_sum
+end_epsilon=0.1
+num_actions=4
+decay_factor=0.75
+full_info=True
+compet=True
+env=Amazon-v2
+memory=1000000.0
+update_freq=10
+lr=0.01
+eval_num=200
+momentum=0.9
+test_mode=False
+optimizer=adam
+num_agents=2
+max_episode_length=75
+activation=sigmoid
+should_move_prob=0.0
+set_controller=False
+batch_size=128
+save_weights=True
+debug_mode=False
+num_burn_in=50000.0
+max_test_episode_length=50
+loss=mean_huber
+algorithm=replay_target
+joint=False
+num_iterations=10000000.0
+single_train=False
+eval_random=False
+weight_path=/Users/griffinadams/weights/
+v=compet-amazon
+tie_break=max
+gamma=0.95
+history=1
