@@ -129,7 +129,7 @@ def run_random_policy(env, model, args):
                                        args.num_agents, args.coop, 'Amazon' in args.env, False, args.history)
 
     initial_state = env.reset()
-    my_range = 1 if args.control == 'set_controller' else args.num_agents
+    my_range = 1 if args.type == 'set_controller' else args.num_agents
 
     env.render()
     total_reward = 0.0
@@ -236,17 +236,19 @@ def main():
     elif 'Warehouse' in args.env:
         args.num_actions = 6
     elif 'Amazon' in args.env:
-        exp = args.num_agents if args.type == 'joint' else 1
+        exp = args.num_agents if args.type == 'joint' or args.type == 'set_controller' else 1
         args.num_actions = 4 ** exp
     else:
         args.num_actions = 4 ** args.num_agents
+
+    my_range = 1 if args.type == 'set_controller' else args.num_agents
 
     pred_model = {}
     args.weight_path = expanduser(args.weight_path)
     mypath = args.weight_path + "/" + args.v
     if not os.path.isdir(mypath):
         os.makedirs(mypath)
-    for i in range(args.num_agents):
+    for i in range(my_range):
         json_file = open(args.weight_path + args.v +"/model" + str(i) + ".json", 'r')
         loaded_model_json = json_file.read()
         json_file.close()

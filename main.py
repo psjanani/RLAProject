@@ -60,7 +60,7 @@ def main():
     parser.add_argument('--decay_factor', default=0.75, type=float, help='Percentage decay length over all iterations')
     parser.add_argument('--num_iterations', default=1e6, type=int, help='Number frames visited for training.')
     parser.add_argument('--smart_burn_in', default=False, type=bool)
-    parser.add_argument('--set_controller', default=True, type=bool)
+    parser.add_argument('--set_controller', default=False, type=bool)
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
     parser.add_argument('--update_freq', default=10, type=int, help='Update frequency.')
