@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--optimizer', default='adam', help='one of sgd, rmsprop, and adam')
 
     parser.add_argument('--num_burn_in', default=5e4, type=int, help='Buffer size pre-training.')
+    parser.add_argument('--nash_algo', default='none', help='friend or nashq')
     parser.add_argument('--tie_break', default='max', help='how to break ties among nash equilibria.')
     parser.add_argument('--no_nash_choice', default='best_sum', help='how to choose when no nash equilibrium.  best_sum (action with best sum of q_values) or best_max (action with highest overall q.')
     
@@ -69,11 +70,17 @@ def main():
     parser.add_argument('--weight_path', default='~/weights/', type=str, help='To save weight at eval frequency')
 
     parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
-
-    parser.add_argument('--joint', default=False, type=bool, help='Whether to model single or joint action space') # 4 or 16
     parser.add_argument('--single_train', default=False, type=bool) # whether one agent (still state space of 8) xxx 000 xx , xxx yyy zz
 
     args = parser.parse_args()
+
+    assert args.nash_algo == 'none' or args.nash_algo == 'friend' or args.nash_algo == 'nashq'
+
+    if not args.nash_algo == 'none' or args.set_controller:
+        args.joint = True
+    else:
+        args.joint = False
+
     assert not (args.joint and args.single_train)
 
     args.num_iterations = args.update_freq * args.num_iterations
@@ -152,11 +159,14 @@ def main():
     multiagent.create_model(env, args)
     if args.save_weights:
         myrange = 1 if args.single_train or args.set_controller else multiagent.number_pred
+
         for i in range(myrange):
             model = multiagent.pred_model[i].network
             model_json = model.to_json()
+
             with open(args.weight_path + args.v +"/model" + str(i) + ".json", "w") as json_file:
                 json_file.write(model_json)
+
     multiagent.fit(args.num_iterations, args.eval_num, args.max_episode_length)
 
 if __name__ == '__main__':

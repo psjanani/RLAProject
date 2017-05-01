@@ -44,6 +44,9 @@ class DQNAgent:
 		self.gamma = args.gamma
 		self.network_name = args.network_name
 		self.num_pred = args.num_agents
+		self.nash_algo = args.nash_algo
+		self.tie_break = args.tie_break
+		self.no_nash_choice = args.no_nash_choice
 
 		if 'Pacman' in args.env:
 			self.num_pred /= 2
@@ -84,6 +87,60 @@ class DQNAgent:
 		q_values = model.predict_on_batch([state, action_mask])
 
 		return q_values.flatten()
+
+	def select_joint_actions(self, q_values1, q_values2):
+		payoffs1 = np.reshape(q_values1, [4, 4])
+		payoffs2 = np.reshape(q_values2, [4, 4])
+
+		br1 = np.argmax(payoffs1, axis=1)
+		br2 = np.argmax(payoffs2, axis=1)
+
+		nash_eq = []
+		nash_eq_q1 = []
+		nash_eq_q2 = []
+		nash_eq_qsum = []
+
+		for i in range(4):
+		    action1 = br1[i]
+		    action2 = i
+
+		    other_action2 = br2[action1]
+
+		    if action2 == other_action2:                
+		        nash_eq.append([str(action1), str(action2)])
+
+		        q_val1 = payoffs1[action1, action2]
+		        q_val2 = payoffs2[action2, action1]
+
+		        nash_eq_q1.append(q_val1)
+		        nash_eq_q2.append(q_val2)
+		        nash_eq_qsum.append(q_val1 + q_val2)
+
+		if len(nash_eq) > 0:
+		    ## if we maxize joint
+		    if self.tie_break == 'max':
+		        nash_idx = np.argmax(nash_eq_qsum)
+		    elif self.tie_break == 'greedy':
+		        action1 = nash_eq[np.argmax(nash_eq_q1)][0]
+		        action2 = nash_eq[np.argmax(nash_eq_q2)][1]
+		        return [action1, action2]
+		    else:
+		        nash_idx = np.random.randint(len(nash_eq))
+
+		    return nash_eq[nash_idx]
+		else:
+		    if self.no_nash_choice == 'best_sum':
+		        action1 = np.argmax(np.sum(payoffs1, axis=0))
+		        action2 = np.argmax(np.sum(payoffs2, axis=0))
+		    elif self.no_nash_choice == 'best_max':
+		        action1 = np.argmax(np.max(payoffs1, axis=0))
+		        action2 = np.argmax(np.max(payoffs2, axis=0))
+		    else: # must be random
+		        action1 = np.random.randint(4)
+		        action2 = np.random.randint(4)
+		        return [action1, action2]
+
+		    return [ action1, action2 ]
 
 	def create_buffer(self, env):
 		self.reset(env)
@@ -156,7 +213,14 @@ class DQNAgent:
 					q_values_update = self.calc_q_values(self.network, sample[i].next_state)
 					A_prime = np.argmax(q_values_update)
 				else:
-					A_prime = np.argmax(q_values)
+					if not self.nash_algo == 'nashq':
+						A_prime = np.argmax(q_values)
+					else:
+						next_state_other = np.zeros([1, 8])
+						next_state_other[0, 0:3] = sample[i].next_state[0, 3:6]
+						next_state_other[0, 3:6] = sample[i].next_state[0, 0:3]
+						q_values_other = self.calc_q_values(self.target, next_state_other)
+						A_prime = int(self.select_joint_actions(q_values, q_values_other)[0])
 
 					true_output += self.gamma * q_values[A_prime]
 			delta.append(true_output - self.calc_q_values(self.target, sample[i].state)[sample[i].action])

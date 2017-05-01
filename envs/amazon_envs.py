@@ -44,7 +44,7 @@ class AmazonEnv(Env):
     grid7_shelves = np.array([ 9, 10, 11, 37, 38, 39 ])
     grid11_shelves = np.array([ 13, 14, 15, 16, 17, 18, 19, 101, 102, 103, 104, 105, 106, 107 ])
 
-    def __init__(self, grid_size, num_agents, total_boxes, single_train, alternating):
+    def __init__(self, grid_size, num_agents, total_boxes, single_train, alternating, fixed_start):
         self.nS = grid_size * grid_size
         self.nA = 4**(num_agents)
         self.action_space = spaces.MultiDiscrete([(0,3)] * num_agents)
@@ -53,7 +53,8 @@ class AmazonEnv(Env):
         self.alternating = alternating
         self.grid_size = grid_size
         self.num_agents = num_agents
-        self.box_delivery_pt = (grid_size * grid_size) //2
+        self.box_delivery_pt = (grid_size * grid_size) // 2
+        self.fixed_start = fixed_start
 
         self.shelves = AmazonEnv.grid7_shelves if grid_size == 7 else AmazonEnv.grid11_shelves
 
@@ -128,26 +129,39 @@ class AmazonEnv(Env):
         """
         self.s = np.zeros([self.grid_size, self.grid_size])
         self.agent_channel = [[0] * self.grid_size for _ in xrange(self.grid_size)]
-        self.rem_boxes=self.total_boxes
-        # random placement of agents first
-        (r, c) = self.random_idx()
-        #for each agent, it will have an even number with box and odd without,i.e. 2i and 2i-1
-        self.agent_channel[int(r)][int(c)] = 2
+        self.rem_boxes = self.total_boxes
+        if self.fixed_start:
+            STARTS = [ [0, 0], [self.grid_size - 1, self.grid_size - 1], [self.grid_size - 1, 0], [0, self.grid_size - 1] ]
 
-        for i in range(1, self.myrange()):
+            for i in range(self.myrange()):
+                self.agent_channel[STARTS[i][0]][STARTS[i][1]] = 2 * (i + 1)
+
+            self.box_pickup_pt = self.shelves[len(self.shelves) // 2]
+            r, c = self.linear2sub(self.box_pickup_pt)
+            self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK - 1
+
+            r, c = self.linear2sub(self.box_delivery_pt)
+            self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK
+        else:
+            # random placement of agents first
             (r, c) = self.random_idx()
+            #for each agent, it will have an even number with box and odd without,i.e. 2i and 2i-1
+            self.agent_channel[int(r)][int(c)] = 2
 
-            while self.agent_channel[int(r)][int(c)] < 2*i + 1:
-                #This while loop checks for places which have been occupied by previous agents
-                if self.agent_channel[int(r)][int(c)]==0:
-                    self.agent_channel[int(r)][int(c)] = 2 * (i + 1)
-                else:
-                    (r, c) = self.random_idx()
+            for i in range(1, self.myrange()):
+                (r, c) = self.random_idx()
 
-        r, c = self.linear2sub(self.box_delivery_pt)
-        self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK
+                while self.agent_channel[int(r)][int(c)] < 2*i + 1:
+                    #This while loop checks for places which have been occupied by previous agents
+                    if self.agent_channel[int(r)][int(c)]==0:
+                        self.agent_channel[int(r)][int(c)] = 2 * (i + 1)
+                    else:
+                        (r, c) = self.random_idx()
 
-        self.box_request()
+            r, c = self.linear2sub(self.box_delivery_pt)
+            self.s[r][c] = AmazonEnv.BOX_DROPOFF_MARK
+
+            self.box_request()
 
         return self.linear2sub(self.box_pickup_pt), self.agent_channel
 
@@ -320,35 +334,41 @@ class AmazonEnv(Env):
 register(
     id='Amazon-v0',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':3,'num_agents':1,'total_boxes':2, 'single_train': False, 'alternating': False }
+    kwargs={'grid_size':3,'num_agents':1,'total_boxes':2, 'single_train': False, 'alternating': False, 'fixed_start': False  }
 )
 
 register(
     id='Amazon-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False, 'alternating': False }
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False, 'alternating': False, 'fixed_start': False  }
+)
+
+register(
+    id='Amazon-FixedStart-v1',
+    entry_point='envs.amazon_envs:AmazonEnv',
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False, 'alternating': False, 'fixed_start': True }
 )
 
 register(
     id='Amazon-Single-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 1, 'single_train':True, 'alternating': False } 
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 1, 'single_train':True, 'alternating': False, 'fixed_start': False  } 
 )
 
 register(
     id='Amazon-v2',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False, 'alternating': False } 
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':False, 'alternating': False, 'fixed_start': False  } 
 )
 
 register(
     id='Amazon-Single-v2',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':True, 'alternating': False } 
+    kwargs={'grid_size':7, 'num_agents':2, 'total_boxes': 2, 'single_train':True, 'alternating': False, 'fixed_start': False  } 
 )
 
 register(
     id='Amazon-Alternating-v1',
     entry_point='envs.amazon_envs:AmazonEnv',
-    kwargs={'grid_size':11, 'num_agents':2, 'total_boxes': 4, 'single_train':False, 'alternating': True } 
+    kwargs={'grid_size':11, 'num_agents':2, 'total_boxes': 4, 'single_train':False, 'alternating': True, 'fixed_start': False } 
 )

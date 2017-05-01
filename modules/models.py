@@ -123,7 +123,6 @@ class DeepQModel(Models):
 
         conv2 = Convolution2D(32, 2, 2, activation='relu',
             border_mode='same', subsample=(1, 1))(conv)
-        print self.model_name
         flatten = Flatten()(conv2)
 
         if "dueling" in self.model_name:

@@ -104,8 +104,8 @@ def calc_q_values(model, state, num_actions, expand_dims=False):
     q_values = model.predict_on_batch([state, action_mask])
     return q_values.flatten()
 
-def run_policy(env, model, args):
-    """Run a policy for the given environment.
+def run_random_policy(env, model, args):
+    """Run a random policy for the given environment.
 
     Logs the total reward and the number of steps until the terminal
     state was reached.
@@ -129,30 +129,26 @@ def run_policy(env, model, args):
     my_range = 1 if args.control == 'set_controller' else args.num_agents
 
     env.render()
-    total_reward = 0.0
-    average_q_values = [0.0] * my_range
-    rewards = []
+
+    states = []
+    actions = []
 
     # evaluation always uses greedy policy
     greedy_policy = GreedyEpsilonPolicy(args.epsilon)
-    total_steps = 0
-    for i in range(args.num_episodes):
-        reward = 0.0
-        df = 1.0
 
+    for i in range(1):
         env.random_start = False
         s = env.reset()
         preprocessor.reset()
         preprocessor.add_state(s)
+        states.add(s)
 
         steps = 0
-        max_q_val_sum = [0] * args.num_agents
         is_terminal = False
         while not is_terminal and steps < args.max_test_episode_length:
             S = preprocessor.get_state()
 
             steps += 1
-            total_steps += 1
 
             if args.control == 'random':
                 action_string = str(np.random.randint(4)) + str(np.random.randint(4))
@@ -169,7 +165,6 @@ def run_policy(env, model, args):
                         if args.control == 'friend':
                             A /= 4
                         action_string += str(A)
-                    max_q_val_sum[j] += np.max(q_values)
             else:
                 q_values = []
                 q_values.append(calc_q_values(model[0], S[0], args.num_actions))
@@ -183,37 +178,20 @@ def run_policy(env, model, args):
                     q_values.append(calc_q_values(model[1], S[1], args.num_actions))
                 action_string= select_actions(q_values[0], q_values[1], args.epsilon)
 
-                for j in range(my_range):
-                    max_q_val_sum[j] += q_values[j][int(action_string[j])]
-
             s_prime, R, is_terminal, debug_info = env.step(action_string)
-            # env.render()
 
-            R = preprocessor.process_reward(R)
-            reward += R[0] * df  # same for each predator bc/ it's cooperative
+            states.append(s_prime)
+            actions.append(action_string)
             preprocessor.add_state(s_prime)
-            df *= args.gamma
 
-        total_reward += reward
-        rewards.append(reward)
-        for i in range(my_range):
-            average_q_values[i] += max_q_val_sum[i] / steps
-
-    avg_q, avg_reward = np.sum(np.array(average_q_values)) / (args.num_episodes *
-                                                              my_range), total_reward / args.num_episodes
-    avg_steps = total_steps / args.num_episodes
-    return avg_reward, avg_q, avg_steps, np.max(rewards), np.std(rewards)
-
-def print_env_info(env):
-    print('Environment has %d states and %d actions.' % (env.nS, env.nA))
+    return states, actions
 
 def main():
     parser = argparse.ArgumentParser(description='Run DQN on Amazon!')
     parser.add_argument('--algorithm', default='replay_target', help='One of basic, replay_target, double')
     parser.add_argument('--compet', default=False, type=bool, help='Coop or compete.')
     parser.add_argument('--debug_mode', default=False, type=bool, help='Whether or not to save states as images.')
-    parser.add_argument('--env', default='Amazon-v1', help='Env name')
-    parser.add_argument('--num_episodes', default=1000, type=int, help='Number of episodes to evaluate on.')
+    parser.add_argument('--env', default='Amazon-FixedStart-v1', help='Env name')
     parser.add_argument('--gamma', default=0.95, type=float, help='discount factor (0, 1)')
     parser.add_argument('--history', default=1, type=int, help='number of frames that make up a state')
     parser.add_argument('--network_name', default='linear',
@@ -223,10 +201,12 @@ def main():
     parser.add_argument('--v', required=True, type=str, help='experiment names, used for loading weights')
     parser.add_argument('--iter', required=True, type=int, help='the weights to load')
     parser.add_argument('--control', required=True, help='iqdn, nashq, friend, set_controller')
-    parser.add_argument('--epsilon', type=float, default=0.05, help='Epsilon for greedy epsilon')
+    parser.add_argument('--epsilon', type=float, default=0.00, help='Epsilon for greedy epsilon')
     parser.add_argument('--max_test_episode_length', type=int, default=10000)
 
     parser.add_argument('--controller_plus_nash', default=False, type=bool)
+
+    EXPERIENCE_DIR = 'experience/'
 
     args = parser.parse_args()
 
@@ -267,12 +247,10 @@ def main():
             pred_model[i] = loaded_model
         print("Loaded model from disk")
     
-    avg_reward, avg_q, avg_steps, max_reward, std_dev = run_policy(env, pred_model, args)
-    print('Agent received average reward of: %f' % avg_reward)
-    print('Agent received average q-values of: %f' % avg_q)
-    print('Agent took average steps of: %d' % avg_steps)
-    print('Agent received max reward of: %d' % max_reward)
-    print('Agent had reward standard deviation of: %f' % std_dev)
+    actions, states = run_policy(env, pred_model, args)
+
+    np.save(EXPERIENCE_DIR + args.v + '_actions.npy', np.array(actions))
+    np.save(EXPERIENCE_DIR + args.v + '_actions.npy', np.array(states))
 
 if __name__ == '__main__':
     main()
