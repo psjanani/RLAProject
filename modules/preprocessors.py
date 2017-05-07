@@ -20,25 +20,68 @@ class HistoryPreprocessor(Preprocessor):
       Number of previous states to prepend to state being processed.
 
     """
-    def __init__(self, frame_size, model_name, num_pred, coop, is_amazon, single_train, history_length=1):
+    def __init__(self, frame_size, model_name, num_pred, coop, env_name, single_train, history_length=1):
         self.history_length = history_length
         self.single_train = single_train
         self.model_name = model_name
         self.coop = coop
         self.num_pred = num_pred
+        self.env_name = env_name
 
         self.frame_size = frame_size
         self.model_name = model_name
 
-        self.is_amazon = is_amazon
-
         self.reset()
 
     def add_state(self, state):
-        if self.is_amazon:
+        if 'Amazon' in self.env_name:
             return self.add_amazon_state(state)
+        elif 'Sync' in self.env_name:
+            return self.add_sync_state(state)
         else:
             return self.add_pacman_state(state)
+
+    def add_sync_state(self, state):
+        agent_state = np.array(state)
+
+        self.frames = np.zeros([self.num_pred * 2, ])
+
+        idxs = np.nonzero(agent_state)
+
+        agent_locs = np.nonzero(agent_state > 0)
+
+        nz_ids = agent_state[agent_locs]
+
+        for i in range(self.num_pred):
+            predator_id = int(nz_ids[i])
+
+            my_loc = agent_locs[i]
+
+            my_r = agent_locs[0][i]
+            my_c = agent_locs[1][i]
+
+            predator_idx = (predator_id - 1) * 2
+
+            self.frames[predator_idx] = float(my_r + 1.0) / self.frame_size[0]
+            self.frames[predator_idx + 1] = float(my_c + 1.0) / self.frame_size[1]
+
+        return self.frames
+
+    def get_sync_state(self, id):
+        full_frames = np.zeros([self.num_pred, self.num_pred * 2])
+
+        full_frames[0, :] = self.frames
+
+        tmp = np.zeros([self.num_pred * 2, ])
+        tmp[0:2] = self.frames[2:4]
+        tmp[2:4] = self.frames[0:2]
+
+        full_frames[1, :] = tmp
+
+        if not id is None:
+            return np.expand_dims(full_frames[id, :], axis=0)
+
+        return np.expand_dims(full_frames, axis=1)
 
     def add_amazon_state(self, state):
         agent_state = np.array(state[-1])
@@ -93,7 +136,7 @@ class HistoryPreprocessor(Preprocessor):
         return self.frames
 
     def process_reward(self, reward):
-        if self.is_amazon:
+        if 'Amazon' in self.env_name:
             if self.coop:
                 total = 0
                 for val in reward:
@@ -103,22 +146,25 @@ class HistoryPreprocessor(Preprocessor):
             else:
                 return reward
 
-        rewards = [0] * self.num_pred
-        reward_val = 100
+        if not self.coop:
+            return reward
 
-        for num in reward:
-            if self.coop:
-                rewards = map(lambda r: r + reward_val, rewards)
-            else: # just the killer gets rewarded (perverse if you ask me)
-                rewards[int(num) - 1] += reward_val
+        reward = np.array(reward)
 
-        return rewards
+        if reward[0] < 0:
+            reward[0:2] = reward[0]
+        elif reward[1] < 0:
+            reward[0:2] = reward[1]
+
+        return reward
 
     def get_state(self, id=None):
-        if self.is_amazon:
+        if 'Amazon' in self.env_name:
             return self.get_amazon_state(id)
+        elif 'Sync' in self.env_name:
+            return self.get_sync_state(id)
         else:
-            return self.get_pacman_state(id)
+            return self.add_pacman_state(id)
 
     def get_amazon_state(self, id):
         full_frames = np.zeros([self.num_pred, (self.num_pred * 3) + 2])
@@ -170,7 +216,10 @@ class HistoryPreprocessor(Preprocessor):
         return np.expand_dims(np.expand_dims(full_frames, axis=-1), axis=1)
 
     def reset(self):
-        self.frames = np.zeros([(self.num_pred * 3) + 2, ])
+        if 'Amazon' in self.env_name:
+            self.frames = np.zeros([(self.num_pred * 3) + 2, ])
+        else:
+            self.frames = np.zeros([ self.num_pred *  2, ])
 
     def get_config(self):
         return {'history_length': self.history_length}

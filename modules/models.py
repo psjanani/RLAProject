@@ -1,6 +1,7 @@
 from keras.layers import Convolution2D, Dense, Flatten, Input, merge, Lambda, Dropout
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.core import RepeatVector
+from keras.layers.merge import Concatenate, Multiply, Add
 from keras.models import Model
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
@@ -8,6 +9,33 @@ from keras import backend as K
 class Models:
     def create_model(self):
         pass
+
+class LinearStreamModel(Models):
+    def __init__(self, input_shape, activation, num_actions):
+        self.input_shape = input_shape
+        self.num_actions = num_actions
+        self.activation = activation
+
+    def create_model(self):
+        state_input = Input(shape=(2,), name='state_input')
+        action_mask = Input(shape=(self.num_actions,), name='action_mask')
+
+        other_state_input = Input(shape=(2,), name='other_state_input')
+
+        upscale_me = Dense(8, activation=self.activation)(state_input)
+        upscale_other = Dense(8, activation=self.activation)(other_state_input)
+
+        merged = Concatenate(axis=-1)([upscale_me, upscale_other])
+
+        joint_rep = Dense(8, activation=self.activation)(merged)
+
+        # _, 8
+        skip_connection = Add()([upscale_me, joint_rep])
+
+        action_output = Dense(self.num_actions, activation='linear', name='action_output')(skip_connection)
+        masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
+
+        return Model(input=[state_input, other_state_input, action_mask], output=masked_output)
 
 class LinearModel(Models):
 
@@ -25,10 +53,10 @@ class LinearModel(Models):
             self.dueling = "no"
 
     def create_model(self):
-        state_input = Input(shape=(8,), name='state_input')
+        state_input = Input(shape=(4,), name='state_input')
         action_mask = Input(shape=(self.num_actions,), name='action_mask')
 
-        dense1 = Dense(128, activation=self.activation)(state_input)
+        dense1 = Dense(16, activation=self.activation)(state_input)
 
         if "dueling" in self.model_name:
             value_stream = Dense(128, activation='relu')(dense2)
@@ -51,8 +79,8 @@ class LinearModel(Models):
             masked_output = merge([action_mask, merged_action], mode='mul', name='merged_output')
 
         else:
-            dense2 = Dense(128, activation=self.activation)(dense1)
-            dense3 = Dense(128, activation=self.activation)(dense2)
+            dense2 = Dense(16, activation=self.activation)(dense1)
+            dense3 = Dense(16, activation=self.activation)(dense2)
             action_output = Dense(self.num_actions, activation='linear', name='action_output')(dense3)
             masked_output = merge([action_mask, action_output], mode='mul', name='merged_output')
 

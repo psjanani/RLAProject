@@ -47,6 +47,7 @@ class DQNAgent:
 		self.nash_algo = args.nash_algo
 		self.tie_break = args.tie_break
 		self.no_nash_choice = args.no_nash_choice
+		self.split_stream = args.split_stream
 
 		if 'Pacman' in args.env:
 			self.num_pred /= 2
@@ -84,23 +85,30 @@ class DQNAgent:
 			state = np.expand_dims(state, axis=0)
 
 		action_mask = np.ones([1, self.num_actions])
-		q_values = model.predict_on_batch([state, action_mask])
+
+		if self.split_stream:
+			my_state = state[:, 0:2]
+			other_state = state[:, 2:4]
+
+			q_values = model.predict_on_batch([my_state, other_state, action_mask])
+		else:
+			q_values = model.predict_on_batch([state, action_mask])
 
 		return q_values.flatten()
 
 	def select_joint_actions(self, q_values1, q_values2):
-		payoffs1 = np.reshape(q_values1, [4, 4])
-		payoffs2 = np.reshape(q_values2, [4, 4])
+		payoffs1 = np.reshape(q_values1, [5, 5])
+		payoffs2 = np.reshape(q_values2, [5, 5])
 
-		br1 = np.argmax(payoffs1, axis=1)
-		br2 = np.argmax(payoffs2, axis=1)
+		br1 = np.argmax(payoffs1, axis=0)
+		br2 = np.argmax(payoffs2, axis=0)
 
 		nash_eq = []
 		nash_eq_q1 = []
 		nash_eq_q2 = []
 		nash_eq_qsum = []
 
-		for i in range(4):
+		for i in range(5):
 		    action1 = br1[i]
 		    action2 = i
 
@@ -130,14 +138,14 @@ class DQNAgent:
 		    return nash_eq[nash_idx]
 		else:
 		    if self.no_nash_choice == 'best_sum':
-		        action1 = np.argmax(np.sum(payoffs1, axis=0))
-		        action2 = np.argmax(np.sum(payoffs2, axis=0))
+		        action1 = np.argmax(np.sum(payoffs1, axis=1))
+		        action2 = np.argmax(np.sum(payoffs2, axis=1))
 		    elif self.no_nash_choice == 'best_max':
-		        action1 = np.argmax(np.max(payoffs1, axis=0))
-		        action2 = np.argmax(np.max(payoffs2, axis=0))
+		        action1 = np.argmax(np.max(payoffs1, axis=1))
+		        action2 = np.argmax(np.max(payoffs2, axis=1))
 		    else: # must be random
-		        action1 = np.random.randint(4)
-		        action2 = np.random.randint(4)
+		        action1 = np.random.randint(int(np.sqrt(self.num_actions)))
+		        action2 = np.random.randint(int(np.sqrt(self.num_actions)))
 		        return [action1, action2]
 
 		    return [ action1, action2 ]
@@ -156,8 +164,8 @@ class DQNAgent:
 			action_str = [0] * self.num_pred
 			A = np.random.randint(self.num_actions)
 
-			other_action = int(A % 4)
-			my_action = int(A // 4)
+			other_action = int(A % np.sqrt(self.num_actions))
+			my_action = int(A // np.sqrt(self.num_actions))
 
 			action_str[0] = str(my_action)
 			action_str[1] = str(other_action)
@@ -216,9 +224,9 @@ class DQNAgent:
 					if not self.nash_algo == 'nashq':
 						A_prime = np.argmax(q_values)
 					else:
-						next_state_other = np.zeros([1, 8])
-						next_state_other[0, 0:3] = sample[i].next_state[0, 3:6]
-						next_state_other[0, 3:6] = sample[i].next_state[0, 0:3]
+						next_state_other = np.zeros([1, 4])
+						next_state_other[0, 0:2] = sample[i].next_state[0, 2:4]
+						next_state_other[0, 2:4] = sample[i].next_state[0, 0:2]
 						q_values_other = self.calc_q_values(self.target, next_state_other)
 						A_prime = int(self.select_joint_actions(q_values, q_values_other)[0])
 
@@ -248,12 +256,12 @@ class DQNAgent:
 
 	def update_model(self, num_iters):
 		minibatch, q_value_index, true_output_masked = self.get_minibatch()
-		loss = self.network.train_on_batch([minibatch, q_value_index], true_output_masked)
-	# render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
 
-	def switch_roles(self):
-		should_switch = np.random.rand() < 0.5
-		if should_switch:
-			tmp = self.target
-			self.target = self.network
-			self.network = tmp
+		if self.split_stream:
+			my_state = minibatch[:, 0:2]
+			other_state = minibatch[:, 2:4]
+			loss = self.network.train_on_batch([my_state, other_state, q_value_index], true_output_masked)
+		else:
+			loss = self.network.train_on_batch([minibatch, q_value_index], true_output_masked)
+		# render("Loss on mini-batch [huber, mae] at " + str(num_iters) + " is " + str(loss), self.verbose)
+

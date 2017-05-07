@@ -12,6 +12,7 @@ from modules.models import *
 from modules.multi_agent import *
 import envs.pacman_envs
 import envs.amazon_envs
+import envs.sync_envs
 from os.path import expanduser
 
 def make_assertions(args):
@@ -31,7 +32,7 @@ def main():
 
     parser.add_argument('--activation', default='sigmoid', help='Activation for linear model: sigmoid, tanh, or relu recommended.')
 
-    parser.add_argument('--env', default='Amazon-v1', help='Env name')
+    parser.add_argument('--env', default='SyncEnv-v0', help='Env name')
     parser.add_argument('--eval_freq', default=1e4, type=int, help='Number frames in between evaluations')
     parser.add_argument('--eval_num', default=200, type=int, help='Number of episodes to evaluate on.')
     parser.add_argument('--eval_random', default=False, type=bool, help='To render eval on random policy or not.')
@@ -64,13 +65,15 @@ def main():
     parser.add_argument('--set_controller', default=False, type=bool)
     parser.add_argument('--target_update_freq', default=1e4, type=int, help='Target Update frequency. Only applies to algorithm==replay_target, double, dueling.')
     parser.add_argument('--test_mode', default=False, type=bool, help='Just render evaluation.')
-    parser.add_argument('--update_freq', default=10, type=int, help='Update frequency.')
+    parser.add_argument('--update_freq', default=3, type=int, help='Update frequency.')
     parser.add_argument('--verbose', default=2, type=int, help='0 - no output. 1 - loss and eval.  2 - loss, eval, and model summary.')
     parser.add_argument('--save_weights', default=True, type=bool, help='To save weight at eval frequency')
     parser.add_argument('--weight_path', default='~/weights/', type=str, help='To save weight at eval frequency')
 
     parser.add_argument('--v', default= 'def', type =str, help='experiment names, used for storing weights')
     parser.add_argument('--single_train', default=False, type=bool) # whether one agent (still state space of 8) xxx 000 xx , xxx yyy zz
+
+    parser.add_argument('--split_stream', default=False, type=bool, help='Whether to pass opponents stream as separate stream or not.')
 
     args = parser.parse_args()
 
@@ -100,7 +103,9 @@ def main():
 
     # make environment
     env = gym.make(args.env)
-    env.set_single_train(args.single_train)
+
+    if 'Amazon' in args.env:
+        env.set_single_train(args.single_train)
     args.num_agents = env.num_agents
 
     if args.v == 'def':
@@ -116,6 +121,9 @@ def main():
     elif 'Amazon' in args.env:
         exp = args.num_agents if args.joint else 1
         args.num_actions = 4 ** exp
+    elif 'Sync' in args.env:
+        exp = args.num_agents if args.joint else 1
+        args.num_actions = 5 ** exp
     else:
         args.num_actions = 4 ** args.num_agents
 

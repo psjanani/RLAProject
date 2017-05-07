@@ -38,15 +38,15 @@ def select_joint_actions(q_values1, q_values2, epsilon=None):
     is_random = epsilon > threshold
 
     if is_random:
-        action1 = np.random.randint(4)
-        action2 = np.random.randint(4)
+        action1 = np.random.randint(5)
+        action2 = np.random.randint(5)
         return [action1, action2]
 
-    payoffs1 = np.reshape(q_values1, [4, 4])
-    payoffs2 = np.reshape(q_values2, [4, 4])
+    payoffs1 = np.reshape(q_values1, [5, 5])
+    payoffs2 = np.reshape(q_values2, [5, 5])
 
-    br1 = np.argmax(payoffs1, axis=1)
-    br2 = np.argmax(payoffs2, axis=1)
+    br1 = np.argmax(payoffs1, axis=0)
+    br2 = np.argmax(payoffs2, axis=0)
 
     nash_eq = []
     nash_eq_q1 = []
@@ -83,11 +83,11 @@ def select_joint_actions(q_values1, q_values2, epsilon=None):
         return nash_eq[nash_idx]
     else:
         if NO_NASH_CHOICE == 'best_sum':
-            action1 = np.argmax(np.sum(payoffs1, axis=0))
-            action2 = np.argmax(np.sum(payoffs2, axis=0))
+            action1 = np.argmax(np.sum(payoffs1, axis=1))
+            action2 = np.argmax(np.sum(payoffs2, axis=1))
         elif NO_NASH_CHOICE == 'best_max':
-            action1 = np.argmax(np.max(payoffs1, axis=0))
-            action2 = np.argmax(np.max(payoffs2, axis=0))
+            action1 = np.argmax(np.max(payoffs1, axis=1))
+            action2 = np.argmax(np.max(payoffs2, axis=1))
         elif NO_NASH_CHOICE == 'rando':
             action1 = np.random.randint(4)
             action2 = np.random.randint(4)
