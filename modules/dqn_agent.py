@@ -92,8 +92,8 @@ class DQNAgent:
 		payoffs1 = np.reshape(q_values1, [4, 4])
 		payoffs2 = np.reshape(q_values2, [4, 4])
 
-		br1 = np.argmax(payoffs1, axis=1)
-		br2 = np.argmax(payoffs2, axis=1)
+		br1 = np.argmax(payoffs1, axis=0)
+		br2 = np.argmax(payoffs2, axis=0)
 
 		nash_eq = []
 		nash_eq_q1 = []
@@ -130,11 +130,11 @@ class DQNAgent:
 		    return nash_eq[nash_idx]
 		else:
 		    if self.no_nash_choice == 'best_sum':
-		        action1 = np.argmax(np.sum(payoffs1, axis=0))
-		        action2 = np.argmax(np.sum(payoffs2, axis=0))
+		        action1 = np.argmax(np.sum(payoffs1, axis=1))
+		        action2 = np.argmax(np.sum(payoffs2, axis=1))
 		    elif self.no_nash_choice == 'best_max':
-		        action1 = np.argmax(np.max(payoffs1, axis=0))
-		        action2 = np.argmax(np.max(payoffs2, axis=0))
+		        action1 = np.argmax(np.max(payoffs1, axis=1))
+		        action2 = np.argmax(np.max(payoffs2, axis=1))
 		    else: # must be random
 		        action1 = np.random.randint(4)
 		        action2 = np.random.randint(4)

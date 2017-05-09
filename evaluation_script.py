@@ -45,8 +45,8 @@ def select_joint_actions(q_values1, q_values2, epsilon=None):
     payoffs1 = np.reshape(q_values1, [4, 4])
     payoffs2 = np.reshape(q_values2, [4, 4])
 
-    br1 = np.argmax(payoffs1, axis=1)
-    br2 = np.argmax(payoffs2, axis=1)
+    br1 = np.argmax(payoffs1, axis=0)
+    br2 = np.argmax(payoffs2, axis=0)
 
     nash_eq = []
     nash_eq_q1 = []
@@ -83,11 +83,11 @@ def select_joint_actions(q_values1, q_values2, epsilon=None):
         return nash_eq[nash_idx]
     else:
         if NO_NASH_CHOICE == 'best_sum':
-            action1 = np.argmax(np.sum(payoffs1, axis=0))
-            action2 = np.argmax(np.sum(payoffs2, axis=0))
+            action1 = np.argmax(np.sum(payoffs1, axis=1))
+            action2 = np.argmax(np.sum(payoffs2, axis=1))
         elif NO_NASH_CHOICE == 'best_max':
-            action1 = np.argmax(np.max(payoffs1, axis=0))
-            action2 = np.argmax(np.max(payoffs2, axis=0))
+            action1 = np.argmax(np.max(payoffs1, axis=1))
+            action2 = np.argmax(np.max(payoffs2, axis=1))
         elif NO_NASH_CHOICE == 'rando':
             action1 = np.random.randint(4)
             action2 = np.random.randint(4)
@@ -258,7 +258,7 @@ def main():
         if not os.path.isdir(mypath):
             os.makedirs(mypath)
         for i in range(my_range):
-            json_file = open(args.weight_path + args.v +"/model" + str(i) + ".json", 'r')
+            json_file = open("/home/shivang/Desktop/DeepRL_10703/Project/RLAProject/experiments/compet-amazon"+"/model" + str(i) + ".json", 'r')
             loaded_model_json = json_file.read()
             json_file.close()
             loaded_model = model_from_json(loaded_model_json)
