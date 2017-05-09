@@ -258,7 +258,7 @@ def main():
         if not os.path.isdir(mypath):
             os.makedirs(mypath)
         for i in range(my_range):
-            json_file = open("/home/shivang/Desktop/DeepRL_10703/Project/RLAProject/experiments/compet-amazon"+"/model" + str(i) + ".json", 'r')
+            json_file = open(args.weight_path + args.v +"/model" + str(i) + ".json", 'r')
             loaded_model_json = json_file.read()
             json_file.close()
             loaded_model = model_from_json(loaded_model_json)
