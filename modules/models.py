@@ -27,7 +27,8 @@ class LinearStreamModel(Models):
 
         merged = Concatenate(axis=-1)([upscale_me, upscale_other])
 
-        joint_rep = Dense(8, activation=self.activation)(merged)
+        joint_rep = Dense(8, activation='relu')(merged)
+        joint_rep = Dense(8, activation='relu')(joint_rep)
 
         # _, 8
         skip_connection = Add()([upscale_me, joint_rep])

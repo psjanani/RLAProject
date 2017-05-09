@@ -380,11 +380,11 @@ class IndependentDQN(MultiAgent):
                 #         print(np.reshape(q_values[1], [5, 5]))
                 #     print(action_string)
 
-                if to_render and ne == 0:
-                    self.env.render()
-                    print('\n')
-                    print q_values
-                    print('\n')
+                # if to_render and ne == 0:
+                #     self.env.render()
+                #     print('\n')
+                #     print q_values
+                #     print('\n')
 
             total_reward += reward
             rewards.append(reward)

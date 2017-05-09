@@ -24,7 +24,7 @@ class SyncEnv(Env):
     """
     metadata = {'render.modes': ['human']}
 
-    REWARD = 100
+    REWARD = 10
     PENALTY = 0
 
     ACTION_DELTAS = [
